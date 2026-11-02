@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tammaro · Gestión</title>
+<style>
+:root{--bg:#F8F9FA;--card:#fff;--bd:#DADCE0;--tx:#202124;--tx2:#5F6368;--pri:#1A73E8;--pri-d:#1557B0;--ok:#188038;--mal:#D93025;--warn:#E37400}
+@media (prefers-color-scheme:dark){:root{--bg:#171717;--card:#222;--bd:#3C4043;--tx:#E8EAED;--tx2:#9AA0A6;--pri:#8AB4F8;--pri-d:#AECBFA;--ok:#81C995;--mal:#F28B82;--warn:#FDD663}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+.oculto{display:none!important}
+h1,h2,h3{margin:0}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:8px;padding:9px 16px;font-weight:600}
+.btn:hover{background:var(--pri-d)}
+.btn.sec{background:transparent;color:var(--pri);border:1px solid var(--bd)}
+.btn.mal{background:var(--mal)}
+.btn:disabled{opacity:.5;cursor:default}
+input,select,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:9px 10px;width:100%}
+label{display:block;font-size:12px;color:var(--tx2);margin:10px 0 4px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px}
+/* pantallas de ingreso */
+.centro{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.centro .card{width:100%;max-width:380px}
+.err{color:var(--mal);font-size:13px;margin-top:10px;min-height:18px}
+/* app */
+header{background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:5}
+.top{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;gap:8px}
+.top b{font-size:16px}
+nav{display:flex;gap:4px;overflow-x:auto;padding:0 12px 8px}
+nav button{background:none;border:0;padding:8px 14px;border-radius:20px;color:var(--tx2);white-space:nowrap;font-weight:600}
+nav button.act{background:var(--pri);color:#fff}
+main{padding:16px;max-width:1100px;margin:0 auto}
+.fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.fila .grow{flex:1;min-width:160px}
+.fila select{width:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi small{color:var(--tx2);display:block;margin-bottom:6px}
+.kpi b{font-size:22px}
+.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:14px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--tx2);position:sticky;top:0;background:var(--card)}
+td.n,th.n{text-align:right}
+td.nom{white-space:normal;min-width:200px;max-width:340px}
+tr.clic{cursor:pointer}
+tr.clic:hover td{background:rgba(26,115,232,.07)}
+tfoot td{font-weight:700}
+.pos{color:var(--ok)}.neg{color:var(--mal)}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;background:rgba(26,115,232,.12);color:var(--pri)}
+.pill.ok{background:rgba(24,128,56,.14);color:var(--ok)}
+.pill.mal{background:rgba(217,48,37,.14);color:var(--mal)}
+.pill.warn{background:rgba(227,116,0,.16);color:var(--warn)}
+.vacio{padding:28px;text-align:center;color:var(--tx2)}
+.aviso{border-radius:10px;padding:10px 12px;margin-bottom:12px;background:rgba(227,116,0,.14);color:var(--tx)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}}
+.dos{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:16px}
+/* modal */
+.fondo{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;z-index:20}
+.modal{background:var(--card);border-radius:14px;width:100%;max-width:560px;padding:20px;margin:auto}
+.modal h3{margin-bottom:6px}
+.prev{background:var(--bg);border:1px dashed var(--bd);border-radius:10px;padding:10px 12px;margin-top:12px;line-height:1.7}
+.botones{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#202124;color:#fff;padding:10px 18px;border-radius:10px;z-index:50;max-width:90vw}
+canvas{max-height:280px}
+</style>
+</head>
+<body>
+
+<!-- ============ PANTALLA: ingreso ============ -->
+<div id="pLogin" class="centro oculto">
+  <div class="card">
+    <h2>Tammaro · Gestión</h2>
+    <p style="color:var(--tx2);margin:6px 0 0">Ingresá con tu usuario.</p>
+    <div id="avisoConfig" class="aviso oculto" style="margin-top:12px">Falta pegar la configuración de Firebase en <code>index.html</code> (ver README).</div>
+    <form id="formLogin">
+      <label for="lgMail">Correo</label>
+      <input id="lgMail" type="email" autocomplete="username" required>
+      <label for="lgPass">Contraseña</label>
+      <input id="lgPass" type="password" autocomplete="current-password" required>
+      <div id="lgErr" class="err"></div>
+      <button class="btn" style="width:100%" type="submit">Entrar</button>
+    </form>
+    <p style="text-align:center;margin:14px 0 0"><a href="#" id="lgOlvide" style="color:var(--pri)">Olvidé mi contraseña</a></p>
+  </div>
+</div>
+
+<!-- ============ PANTALLA: sin rol todavía ============ -->
+<div id="pPendiente" class="centro oculto">
+  <div class="card">
+    <h2>Cuenta pendiente de habilitar</h2>
+    <p>Tu cuenta existe, pero todavía no tiene permisos. Pasale estos datos a quien administra el sistema:</p>
+    <div class="prev"><b>Correo:</b> <span id="pdMail"></span><br><b>ID:</b> <span id="pdUid" style="word-break:break-all"></span></div>
+    <div class="botones"><button class="btn sec" id="pdSalir">Salir</button></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="pApp" class="oculto">
+  <header>
+    <div class="top">
+      <b>Tammaro · Gestión</b>
+      <div><span id="quien" style="color:var(--tx2);font-size:12px;margin-right:8px"></span><button class="btn sec" id="btnSalir">Salir</button></div>
+    </div>
+    <nav id="nav">
+      <button data-t="Inicio" class="act">Inicio</button>
+      <button data-t="Ventas">Ventas</button>
+      <button data-t="Productos">Productos</button>
+      <button data-t="Compras">Compras</button>
+      <button data-t="Config">Configuración</button>
+      <button data-t="Usuarios" id="navUsuarios" class="oculto">Usuarios</button>
+    </nav>
+  </header>
+  <main>
+    <section id="tInicio"></section>
+    <section id="tVentas" class="oculto"></section>
+    <section id="tProductos" class="oculto"></section>
+    <section id="tCompras" class="oculto"></section>
+    <section id="tConfig" class="oculto"></section>
+    <section id="tUsuarios" class="oculto"></section>
+  </main>
+</div>
+<div id="modalRaiz"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+/* =====================================================================
+   TAMMARO · GESTIÓN
+   Un solo archivo, sin build. Datos en Firebase Realtime Database bajo
+   la raíz "tammaro/". Quién entra lo decide "roles/<uid>" (admin|editor|lector).
+   ===================================================================== */
+
+// Configuración del proyecto Firebase «tammaro-gestion» (son datos públicos; los protegen las reglas)
+var FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyCTtnyCGo18EqlzwwKNTSThXqpVQBqss2o',
+  authDomain: 'tammaro-gestion.firebaseapp.com',
+  databaseURL: 'https://tammaro-gestion-default-rtdb.firebaseio.com',
+  projectId: 'tammaro-gestion',
+  appId: '1:1002024231649:web:52617950cb8b59800e8da0'
+};
+
+var RAIZ = 'tammaro';
+var DEF_CONFIG = { comClasica: 0.13, comPremium: 0.18, impuestos: 0.065, publicidad: 0, packaging: 111,
+                   contadora: 50000, monotributo: 45000, margenObj: 0.2 };
+
+var db = null, auth = null;
+var rol = '';           // 'admin' | 'editor' | 'lector'
+var S = { config: {}, productos: {}, ventas: {}, compras: {} };
+var grafico = null;
+
+/* ---------------- utilidades ---------------- */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
+function num(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
+function r2(n){ return Math.round(n * 100) / 100; }
+function money(n){ n = num(n); return (n < 0 ? '-$ ' : '$ ') + Math.abs(Math.round(n)).toLocaleString('es-AR'); }
+function pct(n){ return (num(n) * 100).toFixed(1).replace('.', ',') + '%'; }
+function hoyISO(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function fechaCorta(iso){ if (!iso) return ''; var p = iso.split('-'); return p.length === 3 ? (+p[2]) + '/' + (+p[1]) + '/' + p[0] : iso; }
+function mesDe(iso){ return (iso || '').slice(0, 7); }
+function mesTexto(m){ if (!m) return ''; var p = m.split('-'); var n = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']; return n[(+p[1]) - 1] + ' ' + p[0]; }
+function toast(msg){ var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(function(){ t.remove(); }, 3200); }
+function puedeEditar(){ return rol === 'admin' || rol === 'editor'; }
+// Firebase no acepta undefined ni NaN: se sacan antes de guardar.
+function limpiar(o){ var r = {}; Object.keys(o).forEach(function(k){ var v = o[k]; if (v === undefined || v === null || (typeof v === 'number' && !isFinite(v))) return; r[k] = v; }); return r; }
+function lista(obj){ return Object.keys(obj || {}).map(function(k){ var o = obj[k]; o.id = k; return o; }); }
+
+/* ---------------- cálculos (una sola fórmula para todo el sistema) ---------------- */
+function cfg(){ var c = {}; Object.keys(DEF_CONFIG).forEach(function(k){ c[k] = (S.config && S.config[k] != null) ? num(S.config[k]) : DEF_CONFIG[k]; }); return c; }
+
+// Producto: costo total, comisión, ganancia por unidad y precio sugerido.
+function calcProd(p, tipoForzado){
+  var c = cfg();
+  var pack = p.packaging != null ? num(p.packaging) : c.packaging;
+  var costoTotal = num(p.costo) + pack;
+  // Si se pide otro tipo que el propio del producto, la comisión propia no aplica: se usa la de Configuración.
+  var tipo = tipoForzado || p.tipo || 'Clasica';
+  var propio = !tipoForzado || tipoForzado === (p.tipo || 'Clasica');
+  var com = (propio && p.comision != null) ? num(p.comision) : (tipo === 'Premium' ? c.comPremium : c.comClasica);
+  var mObj = p.margenObj != null ? num(p.margenObj) : c.margenObj;
+  var varPct = com + c.impuestos + c.publicidad;
+  var fijo = num(p.costoFijoML);
+  var precio = num(p.precio);
+  var gan = precio - fijo - precio * varPct - costoTotal;
+  var den = 1 - varPct - mObj;
+  return { tipo: tipo, pack: pack, costoTotal: costoTotal, com: com, mObj: mObj, varPct: varPct, fijo: fijo,
+           gananciaU: gan, margen: precio ? gan / precio : 0,
+           sugerido: den > 0 ? (costoTotal + fijo) / den : null };
+}
+
+// Venta: facturación = precio - comisión ML - impuestos + bonificaciones - envío.
+// Ganancia = facturación - (costo + packaging) x cantidad.
+function calcVenta(v){
+  var fact = num(v.precio) - num(v.descMeli) - num(v.impuestos) + num(v.bonif) - num(v.envio);
+  var costo = (num(v.costoU) + num(v.packU)) * num(v.cantidad);
+  return { fact: fact, costo: costo, gan: fact - costo };
+}
+
+/* ---------------- arranque / sesión ---------------- */
+function configurada(){ return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'PEGAR_AQUI'; }
+function pantalla(n){ ['pLogin','pPendiente','pApp'].forEach(function(id){ $(id).classList.toggle('oculto', id !== n); }); }
+
+window.addEventListener('load', function(){
+  if (!configurada()){ pantalla('pLogin'); $('avisoConfig').classList.remove('oculto'); $('formLogin').classList.add('oculto'); return; }
+  firebase.initializeApp(FIREBASE_CONFIG);
+  auth = firebase.auth(); db = firebase.database();
+  auth.onAuthStateChanged(alCambiarSesion);
+});
+
+function alCambiarSesion(user){
+  if (!user){ rol = ''; pantalla('pLogin'); return; }
+  // Se anota el usuario (para que el admin lo vea en "Usuarios") y se pide el rol.
+  db.ref('usuarios/' + user.uid).update({ email: user.email, ultimoAcceso: new Date().toISOString() }).catch(function(){});
+  db.ref('roles/' + user.uid).once('value').then(function(s){
+    rol = s.val() || '';
+    if (!rol){ $('pdMail').textContent = user.email; $('pdUid').textContent = user.uid; pantalla('pPendiente'); return; }
+    $('quien').textContent = user.email + ' · ' + rol;
+    $('navUsuarios').classList.toggle('oculto', rol !== 'admin');
+    pantalla('pApp');
+    return cargarTodo().then(function(){ irA('Inicio'); });
+  }).catch(function(e){ console.error(e); toast('No se pudo leer tu rol: ' + e.message); });
+}
+
+$('formLogin').addEventListener('submit', function(ev){
+  ev.preventDefault(); $('lgErr').textContent = '';
+  auth.signInWithEmailAndPassword($('lgMail').value.trim(), $('lgPass').value).catch(function(e){
+    $('lgErr').textContent = (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found')
+      ? 'Correo o contraseña incorrectos.' : 'No se pudo ingresar: ' + e.message;
+  });
+});
+$('lgOlvide').addEventListener('click', function(ev){
+  ev.preventDefault(); var m = $('lgMail').value.trim();
+  if (!m){ $('lgErr').textContent = 'Escribí tu correo arriba y volvé a tocar este enlace.'; return; }
+  auth.sendPasswordResetEmail(m).then(function(){ $('lgErr').textContent = 'Te mandamos un correo para cambiar la contraseña.'; })
+    .catch(function(e){ $('lgErr').textContent = e.message; });
+});
+$('btnSalir').addEventListener('click', function(){ auth.signOut(); });
+$('pdSalir').addEventListener('click', function(){ auth.signOut(); });
+
+// Carga con .once(): se lee una vez y se vuelve a leer después de cada cambio.
+function cargarColeccion(n){ return db.ref(RAIZ + '/' + n).once('value').then(function(s){ S[n] = s.val() || {}; }); }
+function cargarTodo(){ return Promise.all(['config','productos','ventas','compras'].map(cargarColeccion)); }
+
+/* ---------------- navegación ---------------- */
+var TABS = ['Inicio','Ventas','Productos','Compras','Config','Usuarios'];
+function irA(t){
+  TABS.forEach(function(x){ $('t' + x).classList.toggle('oculto', x !== t); });
+  Array.prototype.forEach.call($('nav').children, function(b){ b.classList.toggle('act', b.dataset.t === t); });
+  ({ Inicio: pintarInicio, Ventas: pintarVentas, Productos: pintarProductos, Compras: pintarCompras, Config: pintarConfig, Usuarios: pintarUsuarios })[t]();
+}
+$('nav').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (b) irA(b.dataset.t); });
+function tabActual(){ for (var i = 0; i < TABS.length; i++) if (!$('t' + TABS[i]).classList.contains('oculto')) return TABS[i]; return 'Inicio'; }
+function repintar(){ irA(tabActual()); }
+
+/* ---------------- formulario genérico en ventana ----------------
+   campos: {k, l, t:'text|number|date|select|pct|dato', opts, ph, lista}
+   t:'pct' se muestra en % (12,5) y se guarda como fracción (0,125). */
+function abrirForm(o){
+  var vals = o.valores || {};
+  var h = '<div class="fondo"><div class="modal"><h3>' + esc(o.titulo) + '</h3><div class="grid2">';
+  o.campos.forEach(function(c){
+    var v = vals[c.k];
+    if (c.t === 'pct' && v != null && v !== '') v = r2(num(v) * 100);
+    var ref = (c.t === 'dato' || c.t === 'number' || c.t === 'pct' || c.t === 'date' || c.t === 'text' || !c.t);
+    h += '<div' + (c.ancho ? ' style="grid-column:1/-1"' : '') + '><label for="f_' + c.k + '">' + esc(c.l) + '</label>';
+    if (c.t === 'select'){
+      h += '<select id="f_' + c.k + '">' + c.opts.map(function(x){ return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
+    } else if (c.t === 'area'){
+      h += '<textarea id="f_' + c.k + '" rows="2">' + esc(v == null ? '' : v) + '</textarea>';
+    } else {
+      var tipo = (c.t === 'number' || c.t === 'pct') ? 'number' : (c.t === 'date' ? 'date' : 'text');
+      h += '<input id="f_' + c.k + '" type="' + tipo + '"' + (tipo === 'number' ? ' step="any"' : '') +
+           (c.lista ? ' list="' + c.lista + '"' : '') + (c.ph ? ' placeholder="' + esc(c.ph) + '"' : '') +
+           ' value="' + esc(v == null ? '' : v) + '">';
+    }
+    h += '</div>';
+  });
+  h += '</div>' + (o.preview ? '<div class="prev" id="f_prev"></div>' : '') +
+       '<div class="err" id="f_err"></div><div class="botones">' +
+       (o.onBorrar ? '<button class="btn mal" id="f_borrar" style="margin-right:auto">Borrar</button>' : '') +
+       '<button class="btn sec" id="f_cancel">Cancelar</button><button class="btn" id="f_ok">Guardar</button></div></div></div>';
+  $('modalRaiz').innerHTML = h;
+
+  function leer(){
+    var r = {};
+    o.campos.forEach(function(c){
+      var e = $('f_' + c.k), v = e.value;
+      if (c.t === 'number') r[c.k] = v === '' ? null : num(v);
+      else if (c.t === 'pct') r[c.k] = v === '' ? null : num(v) / 100;
+      else r[c.k] = v.trim();
+    });
+    return r;
+  }
+  function refrescar(){ if (o.preview) $('f_prev').innerHTML = o.preview(leer()); }
+  var cerrar = function(){ $('modalRaiz').innerHTML = ''; };
+  $('f_cancel').onclick = cerrar;
+  $('f_ok').onclick = function(){
+    var err = o.validar ? o.validar(leer()) : '';
+    if (err){ $('f_err').textContent = err; return; }
+    $('f_ok').disabled = true;
+    Promise.resolve(o.onGuardar(leer())).then(cerrar).catch(function(e){ $('f_ok').disabled = false; $('f_err').textContent = 'No se pudo guardar: ' + e.message; });
+  };
+  if (o.onBorrar) $('f_borrar').onclick = function(){
+    if (!confirm('¿Borrar este registro? No se puede deshacer.')) return;
+    Promise.resolve(o.onBorrar()).then(cerrar).catch(function(e){ $('f_err').textContent = 'No se pudo borrar: ' + e.message; });
+  };
+  // Cuando el usuario escribe a mano en un campo, se marca para no pisarlo con autocompletados.
+  o.campos.forEach(function(c){
+    var e = $('f_' + c.k);
+    e.addEventListener('input', function(){ e.dataset.mano = '1'; if (o.alCambiar) o.alCambiar(c.k, ayudas); refrescar(); });
+    e.addEventListener('change', function(){ if (o.alCambiar) o.alCambiar(c.k, ayudas); refrescar(); });
+  });
+  var ayudas = {
+    get: function(k){ return $('f_' + k).value; },
+    set: function(k, v, forzar){ var e = $('f_' + k); if (forzar || !e.dataset.mano) e.value = v; },
+    leer: leer
+  };
+  refrescar();
+}
+
+/* ====================================================================
+   INICIO (resumen)
+   ==================================================================== */
+function pintarInicio(){
+  var c = cfg();
+  var ventas = lista(S.ventas), compras = lista(S.compras);
+  var meses = {};
+  ventas.forEach(function(v){ meses[mesDe(v.fecha)] = 1; });
+  var mesesOrd = Object.keys(meses).filter(Boolean).sort();
+  var sel = $('inMes') ? $('inMes').value : (mesesOrd[mesesOrd.length - 1] || '');
+  if (sel !== 'todos' && mesesOrd.indexOf(sel) < 0) sel = mesesOrd[mesesOrd.length - 1] || 'todos';
+
+  var vs = sel === 'todos' ? ventas : ventas.filter(function(v){ return mesDe(v.fecha) === sel; });
+  var fact = 0, gan = 0, unid = 0;
+  vs.forEach(function(v){ var k = calcVenta(v); fact += k.fact; gan += k.gan; unid += num(v.cantidad); });
+  var prem = { n: 0, f: 0, g: 0 };
+  vs.forEach(function(v){ if (v.tipo === 'Premium'){ var q = calcVenta(v); prem.n += num(v.cantidad); prem.f += q.fact; prem.g += q.gan; } });
+  var nMeses = sel === 'todos' ? Math.max(mesesOrd.length, 1) : 1;
+  var fijos = (c.contadora + c.monotributo) * nMeses;
+  var neta = gan - fijos;
+  var pend = compras.filter(function(x){ return x.estado === 'PENDIENTE'; }).reduce(function(a, x){ return a + num(x.cantidad) * num(x.costoU); }, 0);
+
+  // Top productos por ganancia
+  var porProd = {};
+  vs.forEach(function(v){ var k = v.sku || v.producto || '?'; var p = porProd[k] || (porProd[k] = { sku: v.sku, nombre: v.producto, unid: 0, fact: 0, gan: 0 }); var q = calcVenta(v); p.unid += num(v.cantidad); p.fact += q.fact; p.gan += q.gan; });
+  var top = Object.keys(porProd).map(function(k){ return porProd[k]; }).sort(function(a, b){ return b.gan - a.gan; }).slice(0, 8);
+
+  var h = '<div class="fila"><h2 class="grow">Resumen</h2><select id="inMes">' +
+    '<option value="todos"' + (sel === 'todos' ? ' selected' : '') + '>Todos los meses</option>' +
+    mesesOrd.slice().reverse().map(function(m){ return '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + esc(mesTexto(m)) + '</option>'; }).join('') + '</select></div>';
+  if (!ventas.length) h += '<div class="aviso">Todavía no hay ventas cargadas. Cargá la primera en <b>Ventas</b> o importá tu Excel desde <b>Configuración</b>.</div>';
+  h += '<div class="kpis">' +
+    kpi('Facturación', money(fact), 'lo que realmente te llega de ML') +
+    kpi('Ganancia bruta', money(gan), unid + ' unidades vendidas') +
+    kpi('Costos fijos', money(fijos), 'contadora + monotributo' + (sel === 'todos' ? ' × ' + nMeses + ' meses' : '')) +
+    kpi('Ganancia neta', '<span class="' + (neta >= 0 ? 'pos' : 'neg') + '">' + money(neta) + '</span>', fact ? 'margen ' + pct(neta / fact) : '') +
+    kpi('Ventas Premium', prem.n + ' u.', prem.n ? money(prem.f) + ' facturados · ganancia ' + money(prem.g) : 'ninguna en este período') +
+    kpi('Compras pendientes de pago', money(pend), 'a proveedores') + '</div>';
+  h += '<div class="dos"><div class="card"><h3 style="margin-bottom:10px">Por mes</h3><canvas id="cvMes"></canvas></div>' +
+       '<div class="card"><h3 style="margin-bottom:10px">Productos que más ganancia dejan</h3>' +
+       (top.length ? '<table style="min-width:0"><tbody>' + top.map(function(p){ return '<tr><td class="nom">' + esc(p.nombre || p.sku) + '<br><small style="color:var(--tx2)">' + esc(p.sku) + ' · ' + p.unid + ' u.</small></td><td class="n"><b>' + money(p.gan) + '</b></td></tr>'; }).join('') + '</tbody></table>' : '<div class="vacio">Sin datos</div>') +
+       '</div></div>';
+  $('tInicio').innerHTML = h;
+  $('inMes').onchange = pintarInicio;
+
+  // Gráfico: facturación y ganancia por mes (siempre todos los meses, para comparar).
+  var porMes = {};
+  ventas.forEach(function(v){ var m = mesDe(v.fecha); if (!m) return; var q = calcVenta(v); var o = porMes[m] || (porMes[m] = { f: 0, g: 0 }); o.f += q.fact; o.g += q.gan; });
+  var ms = Object.keys(porMes).sort();
+  if (grafico){ grafico.destroy(); grafico = null; }
+  if (ms.length && window.Chart){
+    var oscuro = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+    grafico = new Chart($('cvMes'), { type: 'bar',
+      data: { labels: ms.map(mesTexto), datasets: [
+        { label: 'Facturación', data: ms.map(function(m){ return Math.round(porMes[m].f); }), backgroundColor: oscuro ? '#8AB4F8' : '#1A73E8' },
+        { label: 'Ganancia bruta', data: ms.map(function(m){ return Math.round(porMes[m].g); }), backgroundColor: oscuro ? '#81C995' : '#188038' } ] },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } },
+        scales: { y: { ticks: { callback: function(v){ return '$ ' + v.toLocaleString('es-AR'); } } } } } });
+  }
+}
+function kpi(t, v, sub){ return '<div class="card kpi"><small>' + esc(t) + '</small><b>' + v + '</b><small style="margin:6px 0 0">' + esc(sub || '') + '</small></div>'; }
+
+/* ====================================================================
+   PRODUCTOS
+   ==================================================================== */
+function pintarProductos(){
+  var q = $('prBusca') ? $('prBusca').value.toLowerCase() : '';
+  var ps = lista(S.productos).filter(function(p){ return !q || (p.sku + ' ' + p.nombre).toLowerCase().indexOf(q) >= 0; })
+    .sort(function(a, b){ return String(a.sku).localeCompare(String(b.sku)); });
+  var c = cfg(), bajos = 0;
+  var filas = ps.map(function(p){
+    var k = calcProd(p); var malo = p.precio && k.margen < k.mObj - 0.0001; if (malo) bajos++;
+    return '<tr class="clic" data-id="' + esc(p.id) + '"><td>' + esc(p.sku) + '</td><td class="nom">' + esc(p.nombre) + '</td><td>' + esc(p.tipo || 'Clasica') + '</td>' +
+      '<td class="n">' + money(k.costoTotal) + '</td><td class="n">' + money(p.precio) + '</td><td class="n ' + (k.gananciaU >= 0 ? '' : 'neg') + '">' + money(k.gananciaU) + '</td>' +
+      '<td class="n"><span class="pill ' + (malo ? 'warn' : 'ok') + '">' + pct(k.margen) + '</span></td><td class="n">' + (calcProd(p, 'Clasica').sugerido ? money(calcProd(p, 'Clasica').sugerido) : '—') + '</td><td class="n">' + (calcProd(p, 'Premium').sugerido ? money(calcProd(p, 'Premium').sugerido) : '—') + '</td></tr>';
+  }).join('');
+  $('tProductos').innerHTML =
+    '<div class="fila"><h2 class="grow">Productos <small style="color:var(--tx2)">(' + ps.length + ')</small></h2>' +
+    '<input id="prBusca" class="grow" placeholder="Buscar por SKU o nombre" value="' + esc(q) + '">' +
+    (puedeEditar() ? '<button class="btn" id="prNuevo">+ Nuevo producto</button>' : '') + '</div>' +
+    (bajos ? '<div class="aviso">⚠️ ' + bajos + ' producto(s) tienen margen por debajo del objetivo. Mirá las columnas de precio sugerido.</div>' : '') +
+    '<div class="tw"><table><thead><tr><th>SKU</th><th>Producto</th><th>Publicación</th><th class="n">Costo total</th><th class="n">Precio</th><th class="n">Ganancia/u.</th><th class="n">Margen</th><th class="n">Sugerido Clásica</th><th class="n">Sugerido Premium</th></tr></thead><tbody>' +
+    (filas || '<tr><td colspan="9" class="vacio">No hay productos.</td></tr>') + '</tbody></table></div>' +
+    '<p style="color:var(--tx2);font-size:12px">Los precios sugeridos (Clásica y Premium) son los que te dejan el margen objetivo (' + pct(c.margenObj) + ' por defecto) después de comisión, impuestos, costo fijo de ML y costo del producto.</p>';
+  var b = $('prBusca'); b.oninput = function(){ var pos = b.selectionStart; pintarProductos(); var n = $('prBusca'); n.focus(); n.setSelectionRange(pos, pos); };
+  if ($('prNuevo')) $('prNuevo').onclick = function(){ formProducto(null); };
+  Array.prototype.forEach.call($('tProductos').querySelectorAll('tr.clic'), function(tr){ tr.onclick = function(){ formProducto(tr.dataset.id); }; });
+}
+
+function formProducto(id){
+  var p = id ? S.productos[id] : { tipo: 'Clasica' };
+  var c = cfg();
+  abrirForm({
+    titulo: id ? 'Producto ' + (p.sku || '') : 'Nuevo producto',
+    valores: p,
+    campos: [
+      { k: 'sku', l: 'SKU' }, { k: 'tipo', l: 'Tipo de publicación', t: 'select', opts: ['Clasica', 'Premium'] },
+      { k: 'nombre', l: 'Nombre del producto', ancho: true },
+      { k: 'costo', l: 'Costo del producto ($)', t: 'number' }, { k: 'packaging', l: 'Packaging ($)', t: 'number', ph: 'Por defecto: ' + c.packaging },
+      { k: 'precio', l: 'Precio de venta ($)', t: 'number' }, { k: 'costoFijoML', l: 'Costo fijo de ML ($)', t: 'number' },
+      { k: 'comision', l: 'Comisión ML (%)', t: 'pct', ph: 'Por defecto: ' + (p.tipo === 'Premium' ? c.comPremium : c.comClasica) * 100 },
+      { k: 'margenObj', l: 'Margen objetivo (%)', t: 'pct', ph: 'Por defecto: ' + c.margenObj * 100 }
+    ],
+    preview: function(v){
+      var k = calcProd(v);
+      return 'Costo total: <b>' + money(k.costoTotal) + '</b> · Ganancia por unidad: <b class="' + (k.gananciaU >= 0 ? 'pos' : 'neg') + '">' + money(k.gananciaU) + '</b> (' + pct(k.margen) + ')<br>' +
+             'Para ' + pct(k.mObj) + ' de margen: Clásica <b>' + (calcProd(v, 'Clasica').sugerido ? money(calcProd(v, 'Clasica').sugerido) : '—') + '</b> · Premium <b>' + (calcProd(v, 'Premium').sugerido ? money(calcProd(v, 'Premium').sugerido) : '—') + '</b>';
+    },
+    validar: function(v){ if (!v.sku) return 'Falta el SKU.'; if (!v.nombre) return 'Falta el nombre.'; if (v.costo == null) return 'Falta el costo.'; return ''; },
+    onGuardar: function(v){
+      var ref = id ? db.ref(RAIZ + '/productos/' + id) : db.ref(RAIZ + '/productos').push();
+      return ref.set(limpiar(v)).then(function(){ return cargarColeccion('productos'); }).then(repintar);
+    },
+    onBorrar: id && rol === 'admin' ? function(){ return db.ref(RAIZ + '/productos/' + id).remove().then(function(){ return cargarColeccion('productos'); }).then(repintar); } : null
+  });
+}
+
+/* ====================================================================
+   VENTAS
+   ==================================================================== */
+function pintarVentas(){
+  var q = $('veBusca') ? $('veBusca').value.toLowerCase() : '';
+  var vs = lista(S.ventas);
+  var meses = {}; vs.forEach(function(v){ meses[mesDe(v.fecha)] = 1; });
+  var mesesOrd = Object.keys(meses).filter(Boolean).sort().reverse();
+  var mes = $('veMes') ? $('veMes').value : 'todos';
+  vs = vs.filter(function(v){ return (mes === 'todos' || mesDe(v.fecha) === mes) && (!q || ((v.sku || '') + ' ' + (v.producto || '') + ' ' + (v.nro || '')).toLowerCase().indexOf(q) >= 0); })
+    .sort(function(a, b){ return String(b.fecha).localeCompare(String(a.fecha)) || num(b.nro) - num(a.nro); });
+  var tf = 0, tg = 0, tu = 0;
+  var filas = vs.map(function(v){
+    var k = calcVenta(v); tf += k.fact; tg += k.gan; tu += num(v.cantidad);
+    return '<tr class="clic" data-id="' + esc(v.id) + '"><td>' + fechaCorta(v.fecha) + '</td><td>' + esc(v.nro) + '</td><td class="nom">' + esc(v.producto) + '<br><small style="color:var(--tx2)">' + esc(v.sku) + '</small>' + (v.tipo === 'Premium' ? ' <span class="pill">Premium</span>' : '') + '</td>' +
+      '<td class="n">' + esc(v.cantidad) + '</td><td class="n">' + money(v.precio) + '</td><td class="n">' + money(k.fact) + '</td><td class="n ' + (k.gan >= 0 ? 'pos' : 'neg') + '">' + money(k.gan) + '</td></tr>';
+  }).join('');
+  $('tVentas').innerHTML =
+    '<div class="fila"><h2 class="grow">Ventas</h2>' +
+    '<input id="veBusca" class="grow" placeholder="Buscar" value="' + esc(q) + '">' +
+    '<select id="veMes"><option value="todos">Todos los meses</option>' + mesesOrd.map(function(m){ return '<option value="' + m + '"' + (m === mes ? ' selected' : '') + '>' + esc(mesTexto(m)) + '</option>'; }).join('') + '</select>' +
+    (puedeEditar() ? '<button class="btn" id="veNueva">+ Nueva venta</button>' : '') + '</div>' +
+    '<div class="tw"><table><thead><tr><th>Fecha</th><th>N°</th><th>Producto</th><th class="n">Cant.</th><th class="n">Precio</th><th class="n">Facturación</th><th class="n">Ganancia</th></tr></thead><tbody>' +
+    (filas || '<tr><td colspan="7" class="vacio">No hay ventas para mostrar.</td></tr>') + '</tbody>' +
+    (vs.length ? '<tfoot><tr><td colspan="3">Total (' + vs.length + ' ventas)</td><td class="n">' + tu + '</td><td></td><td class="n">' + money(tf) + '</td><td class="n">' + money(tg) + '</td></tr></tfoot>' : '') + '</table></div>';
+  var b = $('veBusca'); b.oninput = function(){ var pos = b.selectionStart; pintarVentas(); var n = $('veBusca'); n.focus(); n.setSelectionRange(pos, pos); };
+  $('veMes').onchange = pintarVentas;
+  if ($('veNueva')) $('veNueva').onclick = function(){ formVenta(null); };
+  Array.prototype.forEach.call($('tVentas').querySelectorAll('tr.clic'), function(tr){ tr.onclick = function(){ formVenta(tr.dataset.id); }; });
+}
+
+function datalistProductos(){ return '<datalist id="dlSku">' + lista(S.productos).map(function(p){ return '<option value="' + esc(p.sku) + '">' + esc(p.nombre) + '</option>'; }).join('') + '</datalist>'; }
+function productoPorSku(sku){ var r = null; lista(S.productos).forEach(function(p){ if (!r && p.sku === sku) r = p; }); return r; }
+function proximoNro(){ var m = 0; lista(S.ventas).forEach(function(v){ m = Math.max(m, num(v.nro)); }); return m + 1; }
+
+function formVenta(id){
+  var v = id ? S.ventas[id] : { fecha: hoyISO(), cantidad: 1, nro: proximoNro(), tipo: 'Clasica' };
+  if (!v.tipo) v.tipo = (productoPorSku(v.sku) || {}).tipo || 'Clasica';   // ventas viejas sin tipo
+  var c = cfg();
+  var costoU = v.costoU, packU = v.packU;           // se guardan en la venta: si después cambia el costo, el historial no se mueve
+  abrirForm({
+    titulo: id ? 'Venta N° ' + v.nro : 'Nueva venta',
+    valores: v,
+    campos: [
+      { k: 'fecha', l: 'Fecha', t: 'date' }, { k: 'nro', l: 'N° de venta', t: 'number' },
+      { k: 'sku', l: 'SKU (elegí de la lista)', lista: 'dlSku' }, { k: 'cantidad', l: 'Cantidad', t: 'number' },
+      { k: 'producto', l: 'Producto', ancho: true },
+      { k: 'tipo', l: 'Publicación', t: 'select', opts: ['Clasica', 'Premium'] },
+      { k: 'precio', l: 'Precio de venta total ($)', t: 'number' }, { k: 'descMeli', l: 'Comisión de ML ($)', t: 'number' },
+      { k: 'impuestos', l: 'Impuestos ($)', t: 'number' }, { k: 'bonif', l: 'Bonificaciones de ML ($)', t: 'number' },
+      { k: 'envio', l: 'Envío ($)', t: 'number' }
+    ],
+    alCambiar: function(k, a){
+      if (k === 'sku'){
+        var p = productoPorSku(a.get('sku').trim());
+        if (p){ var kp = calcProd(p); a.set('producto', p.nombre, true); a.set('tipo', p.tipo || 'Clasica', true); costoU = num(p.costo); packU = kp.pack;
+                if (p.precio) a.set('precio', num(p.precio) * (num(a.get('cantidad')) || 1)); }
+      }
+      if (k === 'sku' || k === 'precio' || k === 'cantidad' || k === 'tipo'){
+        // Estimación inicial de comisión e impuestos (se puede pisar a mano con el dato real de ML).
+        var pr = num(a.get('precio')), p2 = productoPorSku(a.get('sku').trim());
+        var tipoV = a.get('tipo');
+        var com = p2 ? calcProd(p2, tipoV).com : (tipoV === 'Premium' ? c.comPremium : c.comClasica);
+        a.set('descMeli', r2(pr * com)); a.set('impuestos', r2(pr * c.impuestos));
+      }
+    },
+    preview: function(x){
+      var tmp = { precio: x.precio, descMeli: x.descMeli, impuestos: x.impuestos, bonif: x.bonif, envio: x.envio, cantidad: x.cantidad,
+                  costoU: costoU != null ? costoU : costoDe(x.sku), packU: packU != null ? packU : c.packaging };
+      var k = calcVenta(tmp);
+      return 'Facturación: <b>' + money(k.fact) + '</b> · Costo: <b>' + money(k.costo) + '</b> · Ganancia: <b class="' + (k.gan >= 0 ? 'pos' : 'neg') + '">' + money(k.gan) + '</b>' +
+             (num(x.precio) ? ' (' + pct(k.gan / num(x.precio)) + ' del precio)' : '') +
+             (tmp.costoU ? '' : '<br><small>⚠️ No encuentro el costo de este SKU: la ganancia no descuenta el producto.</small>');
+    },
+    validar: function(x){ if (!x.fecha) return 'Falta la fecha.'; if (!x.producto && !x.sku) return 'Falta el producto.'; if (!(num(x.cantidad) > 0)) return 'La cantidad tiene que ser mayor a 0.'; if (x.precio == null) return 'Falta el precio.'; return ''; },
+    onGuardar: function(x){
+      var p = productoPorSku(x.sku);
+      if (costoU == null) costoU = p ? num(p.costo) : 0;
+      if (packU == null) packU = p ? calcProd(p).pack : c.packaging;
+      x.costoU = costoU; x.packU = packU;
+      ['descMeli','impuestos','bonif','envio'].forEach(function(k){ if (x[k] == null) x[k] = 0; });
+      var ref = id ? db.ref(RAIZ + '/ventas/' + id) : db.ref(RAIZ + '/ventas').push();
+      return ref.set(limpiar(x)).then(function(){ return cargarColeccion('ventas'); }).then(repintar);
+    },
+    onBorrar: id && rol === 'admin' ? function(){ return db.ref(RAIZ + '/ventas/' + id).remove().then(function(){ return cargarColeccion('ventas'); }).then(repintar); } : null
+  });
+  $('modalRaiz').insertAdjacentHTML('beforeend', datalistProductos());
+}
+function costoDe(sku){ var p = productoPorSku((sku || '').trim()); return p ? num(p.costo) : 0; }
+
+/* ====================================================================
+   COMPRAS A PROVEEDORES
+   ==================================================================== */
+function pintarCompras(){
+  var cs = lista(S.compras).sort(function(a, b){ return String(b.fecha).localeCompare(String(a.fecha)); });
+  var filtro = $('coEstado') ? $('coEstado').value : 'todos';
+  if (filtro !== 'todos') cs = cs.filter(function(x){ return x.estado === filtro; });
+  var tot = 0;
+  var filas = cs.map(function(x){
+    var t = num(x.cantidad) * num(x.costoU); tot += t;
+    return '<tr class="clic" data-id="' + esc(x.id) + '"><td>' + fechaCorta(x.fecha) + '</td><td class="nom">' + esc(x.producto) + '<br><small style="color:var(--tx2)">' + esc(x.sku) + '</small></td>' +
+      '<td class="n">' + esc(x.cantidad) + '</td><td class="n">' + money(x.costoU) + '</td><td class="n">' + money(t) + '</td>' +
+      '<td><span class="pill ' + (x.estado === 'PAGADO' ? 'ok' : 'mal') + '">' + esc(x.estado || 'PENDIENTE') + '</span></td><td class="nom">' + esc(x.nota) + '</td></tr>';
+  }).join('');
+  $('tCompras').innerHTML =
+    '<div class="fila"><h2 class="grow">Compras a proveedores</h2>' +
+    '<select id="coEstado"><option value="todos">Todas</option><option value="PENDIENTE"' + (filtro === 'PENDIENTE' ? ' selected' : '') + '>Pendientes de pago</option><option value="PAGADO"' + (filtro === 'PAGADO' ? ' selected' : '') + '>Pagadas</option></select>' +
+    (puedeEditar() ? '<button class="btn" id="coNueva">+ Nueva compra</button>' : '') + '</div>' +
+    '<div class="tw"><table><thead><tr><th>Fecha</th><th>Producto</th><th class="n">Cant.</th><th class="n">Costo u.</th><th class="n">Total</th><th>Estado</th><th>Nota</th></tr></thead><tbody>' +
+    (filas || '<tr><td colspan="7" class="vacio">No hay compras.</td></tr>') + '</tbody>' +
+    (cs.length ? '<tfoot><tr><td colspan="4">Total (' + cs.length + ')</td><td class="n">' + money(tot) + '</td><td colspan="2"></td></tr></tfoot>' : '') + '</table></div>';
+  $('coEstado').onchange = pintarCompras;
+  if ($('coNueva')) $('coNueva').onclick = function(){ formCompra(null); };
+  Array.prototype.forEach.call($('tCompras').querySelectorAll('tr.clic'), function(tr){ tr.onclick = function(){ formCompra(tr.dataset.id); }; });
+}
+
+function formCompra(id){
+  var x = id ? S.compras[id] : { fecha: hoyISO(), cantidad: 1, estado: 'PENDIENTE' };
+  abrirForm({
+    titulo: id ? 'Compra' : 'Nueva compra', valores: x,
+    campos: [
+      { k: 'fecha', l: 'Fecha', t: 'date' }, { k: 'estado', l: 'Estado', t: 'select', opts: ['PENDIENTE', 'PAGADO'] },
+      { k: 'sku', l: 'SKU', lista: 'dlSku' }, { k: 'cantidad', l: 'Cantidad', t: 'number' },
+      { k: 'producto', l: 'Producto', ancho: true },
+      { k: 'costoU', l: 'Costo por unidad ($)', t: 'number' }, { k: 'nota', l: 'Nota' }
+    ],
+    alCambiar: function(k, a){ if (k === 'sku'){ var p = productoPorSku(a.get('sku').trim()); if (p){ a.set('producto', p.nombre, true); a.set('costoU', num(p.costo), true); } } },
+    preview: function(v){ return 'Total de la compra: <b>' + money(num(v.cantidad) * num(v.costoU)) + '</b>'; },
+    validar: function(v){ if (!v.fecha) return 'Falta la fecha.'; if (!v.producto && !v.sku) return 'Falta el producto.'; if (v.costoU == null) return 'Falta el costo.'; return ''; },
+    onGuardar: function(v){
+      var ref = id ? db.ref(RAIZ + '/compras/' + id) : db.ref(RAIZ + '/compras').push();
+      return ref.set(limpiar(v)).then(function(){ return cargarColeccion('compras'); }).then(repintar);
+    },
+    onBorrar: id && rol === 'admin' ? function(){ return db.ref(RAIZ + '/compras/' + id).remove().then(function(){ return cargarColeccion('compras'); }).then(repintar); } : null
+  });
+  $('modalRaiz').insertAdjacentHTML('beforeend', datalistProductos());
+}
+
+/* ====================================================================
+   CONFIGURACIÓN + IMPORTAR EXCEL
+   ==================================================================== */
+var CAMPOS_CFG = [
+  ['comClasica', 'Comisión publicación Clásica (%)', 1], ['comPremium', 'Comisión publicación Premium (%)', 1],
+  ['impuestos', 'Impuestos: IIBB + retenciones (%)', 1], ['publicidad', 'Publicidad estimada (%)', 1],
+  ['margenObj', 'Margen neto objetivo (%)', 1], ['packaging', 'Packaging promedio por unidad ($)', 0],
+  ['contadora', 'Contadora, costo mensual ($)', 0], ['monotributo', 'Monotributo, costo mensual ($)', 0]
+];
+function pintarConfig(){
+  var c = cfg(), ed = rol === 'admin';
+  var h = '<div class="fila"><h2 class="grow">Configuración</h2></div><div class="card"><div class="grid2">';
+  CAMPOS_CFG.forEach(function(f){
+    var v = f[2] ? r2(c[f[0]] * 100) : c[f[0]];
+    h += '<div><label for="cf_' + f[0] + '">' + esc(f[1]) + '</label><input id="cf_' + f[0] + '" type="number" step="any" value="' + v + '"' + (ed ? '' : ' disabled') + '></div>';
+  });
+  h += '</div>' + (ed ? '<div class="botones"><button class="btn" id="cfGuardar">Guardar</button></div>' : '<p style="color:var(--tx2)">Solo un administrador puede cambiar estos valores.</p>') + '</div>';
+  if (puedeEditar()){
+    h += '<div class="card" style="margin-top:16px"><h3>Importar desde Excel</h3>' +
+      '<p style="color:var(--tx2)">Sirve para pasar el Tablero Financiero actual. Lee las hojas <b>Productos</b>, <b>Ventas</b> y <b>Proveedores</b>. No toca el archivo original.</p>' +
+      '<input type="file" id="impArchivo" accept=".xlsx,.xls"><div id="impInfo" class="prev oculto"></div>' +
+      '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--tx)"><input type="checkbox" id="impBorrar" style="width:auto"> Borrar lo que ya hay antes de importar (evita duplicados si importás dos veces)</label>' +
+      '<div class="botones"><button class="btn" id="impOk" disabled>Importar</button></div></div>';
+  }
+  $('tConfig').innerHTML = h;
+  if (ed) $('cfGuardar').onclick = function(){
+    var o = {}; CAMPOS_CFG.forEach(function(f){ var v = num($('cf_' + f[0]).value); o[f[0]] = f[2] ? v / 100 : v; });
+    db.ref(RAIZ + '/config').set(o).then(function(){ return cargarColeccion('config'); }).then(function(){ toast('Configuración guardada'); }).catch(function(e){ toast('Error: ' + e.message); });
+  };
+  if (puedeEditar()) prepararImport();
+}
+
+// ---- Lectura del Excel (función pura: recibe el libro y devuelve los datos) ----
+function serialAISO(s){ if (typeof s === 'number') return new Date(Math.round((s - 25569) * 86400000)).toISOString().slice(0, 10); if (s instanceof Date) return s.toISOString().slice(0, 10); return ''; }
+function filasHoja(XL, wb, nombre){ var ws = wb.Sheets[nombre]; return ws ? XL.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null }) : null; }
+function leerExcel(XL, wb, packDefecto){
+  var out = { productos: [], ventas: [], compras: [], avisos: [] };
+  var fp = filasHoja(XL, wb, 'Productos'), fv = filasHoja(XL, wb, 'Ventas'), fc = filasHoja(XL, wb, 'Proveedores');
+  if (!fp) out.avisos.push('No encontré la hoja «Productos».');
+  if (!fv) out.avisos.push('No encontré la hoja «Ventas».');
+  if (!fc) out.avisos.push('No encontré la hoja «Proveedores».');
+  var porSku = {};
+  (fp || []).slice(1).forEach(function(r){
+    if (!r[0] || !r[2] || typeof r[3] !== 'number') return;
+    var p = { sku: String(r[0]).trim(), nombre: String(r[2]).trim(), costo: r[3], tipo: r[6] === 'Premium' ? 'Premium' : 'Clasica' };
+    if (typeof r[4] === 'number' && r[4] !== packDefecto) p.packaging = r[4];
+    if (typeof r[7] === 'number') p.comision = r[7];
+    if (typeof r[14] === 'number') p.costoFijoML = r[14];
+    if (typeof r[15] === 'number') p.margenObj = r[15];
+    if (typeof r[16] === 'number') p.precio = r[16];
+    if (porSku[p.sku]) out.avisos.push('SKU repetido en Productos: ' + p.sku + ' (se importan los dos; revisalo).');
+    porSku[p.sku] = p; out.productos.push(p);
+  });
+  (fv || []).slice(1).forEach(function(r){
+    var fecha = serialAISO(r[1]); if (!fecha || typeof r[5] !== 'number') return;
+    var cant = typeof r[4] === 'number' && r[4] > 0 ? r[4] : 1, sku = r[2] ? String(r[2]).trim() : '';
+    var pr = porSku[sku];
+    var costoTotal = typeof r[6] === 'number' ? r[6] : (pr ? pr.costo * cant : 0);
+    out.ventas.push({ nro: r[0], fecha: fecha, sku: sku, producto: r[3] ? String(r[3]).trim() : (pr ? pr.nombre : ''), cantidad: cant, precio: r[5],
+      tipo: pr ? pr.tipo : 'Clasica', descMeli: num(r[7]), impuestos: num(r[8]), bonif: num(r[9]), envio: num(r[10]), costoU: r2(costoTotal / cant), packU: pr && pr.packaging != null ? pr.packaging : packDefecto });
+  });
+  (fc || []).slice(1).forEach(function(r){
+    var fecha = serialAISO(r[0]); if (!fecha || typeof r[4] !== 'number') return;
+    var c = { fecha: fecha, sku: r[1] ? String(r[1]).trim() : '', producto: r[2] ? String(r[2]).trim() : '', cantidad: typeof r[3] === 'number' ? r[3] : 1, costoU: r[4],
+              estado: String(r[7] || '').toUpperCase() === 'PAGADO' ? 'PAGADO' : 'PENDIENTE' };
+    if (r[8]) c.nota = String(r[8]).trim();
+    out.compras.push(c);
+  });
+  return out;
+}
+
+var impDatos = null;
+function prepararImport(){
+  $('impArchivo').onchange = function(){
+    var f = this.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){
+      try {
+        var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+        impDatos = leerExcel(XLSX, wb, cfg().packaging);
+        var i = $('impInfo'); i.classList.remove('oculto');
+        i.innerHTML = 'Encontré <b>' + impDatos.productos.length + '</b> productos, <b>' + impDatos.ventas.length + '</b> ventas y <b>' + impDatos.compras.length + '</b> compras.' +
+          (impDatos.avisos.length ? '<br><small>' + impDatos.avisos.slice(0, 6).map(esc).join('<br>') + '</small>' : '');
+        $('impOk').disabled = !(impDatos.productos.length || impDatos.ventas.length || impDatos.compras.length);
+      } catch (e){ toast('No pude leer el Excel: ' + e.message); }
+    };
+    rd.readAsArrayBuffer(f);
+  };
+  $('impOk').onclick = function(){
+    if (!impDatos) return;
+    var borrar = $('impBorrar').checked;
+    if (!confirm('Se van a importar ' + impDatos.productos.length + ' productos, ' + impDatos.ventas.length + ' ventas y ' + impDatos.compras.length + ' compras' + (borrar ? ' BORRANDO lo que ya hay' : ' (se suman a lo que ya hay)') + '. ¿Seguimos?')) return;
+    $('impOk').disabled = true;
+    var tareas = [['productos', impDatos.productos], ['ventas', impDatos.ventas], ['compras', impDatos.compras]].map(function(par){
+      var obj = {}; par[1].forEach(function(x){ obj[db.ref(RAIZ + '/' + par[0]).push().key] = limpiar(x); });
+      var ref = db.ref(RAIZ + '/' + par[0]);
+      if (!par[1].length) return Promise.resolve();
+      return borrar ? ref.set(obj) : ref.update(obj);
+    });
+    Promise.all(tareas).then(cargarTodo).then(function(){ toast('Importación lista'); impDatos = null; irA('Inicio'); })
+      .catch(function(e){ toast('Falló la importación: ' + e.message); $('impOk').disabled = false; });
+  };
+}
+
+/* ====================================================================
+   USUARIOS (solo admin)
+   ==================================================================== */
+function pintarUsuarios(){
+  if (rol !== 'admin'){ $('tUsuarios').innerHTML = ''; return; }
+  $('tUsuarios').innerHTML = '<div class="vacio">Cargando…</div>';
+  Promise.all([db.ref('usuarios').once('value'), db.ref('roles').once('value')]).then(function(r){
+    var us = r[0].val() || {}, ro = r[1].val() || {};
+    var filas = Object.keys(us).sort(function(a, b){ return String(us[a].email).localeCompare(String(us[b].email)); }).map(function(uid){
+      var yo = auth.currentUser && auth.currentUser.uid === uid;
+      return '<tr><td>' + esc(us[uid].email) + (yo ? ' <span class="pill">vos</span>' : '') + '</td><td>' +
+        '<select data-uid="' + esc(uid) + '"' + (yo ? ' disabled' : '') + '>' +
+        ['', 'lector', 'editor', 'admin'].map(function(x){ return '<option value="' + x + '"' + (x === (ro[uid] || '') ? ' selected' : '') + '>' + (x || 'Sin acceso') + '</option>'; }).join('') + '</select></td></tr>';
+    }).join('');
+    $('tUsuarios').innerHTML = '<div class="fila"><h2 class="grow">Usuarios</h2></div>' +
+      '<div class="aviso"><b>Cómo se suma alguien:</b> 1) Creás su cuenta en Firebase → Authentication → Users → «Add user». 2) La persona entra una vez. 3) Acá le elegís el rol.<br>' +
+      '<b>Lector</b> solo mira · <b>Editor</b> carga y modifica · <b>Admin</b> además borra, cambia la configuración y gestiona usuarios.</div>' +
+      '<div class="tw"><table style="min-width:0"><thead><tr><th>Correo</th><th>Rol</th></tr></thead><tbody>' + (filas || '<tr><td colspan="2" class="vacio">Todavía nadie entró.</td></tr>') + '</tbody></table></div>';
+    Array.prototype.forEach.call($('tUsuarios').querySelectorAll('select'), function(sel){
+      sel.onchange = function(){
+        // Sin rol = remove(). Una cadena vacía "existiría" para las reglas y daría acceso.
+        var ref = db.ref('roles/' + sel.dataset.uid);
+        (sel.value ? ref.set(sel.value) : ref.remove()).then(function(){ toast('Rol actualizado'); }).catch(function(e){ toast('Error: ' + e.message); });
+      };
+    });
+  }).catch(function(e){ $('tUsuarios').innerHTML = '<div class="aviso">No se pudo leer: ' + esc(e.message) + '</div>'; });
+}
+</script>
+<!-- FIN SCRIPT PRINCIPAL -->
+</body>
+</html>

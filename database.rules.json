@@ -1,0 +1,29 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "roles": {
+      ".read": "root.child('roles').child(auth.uid).val() === 'admin'",
+      "$uid": {
+        ".read": "auth.uid === $uid",
+        ".write": "root.child('roles').child(auth.uid).val() === 'admin'"
+      }
+    },
+
+    "usuarios": {
+      ".read": "root.child('roles').child(auth.uid).val() === 'admin'",
+      "$uid": {
+        ".write": "auth.uid === $uid"
+      }
+    },
+
+    "tammaro": {
+      ".read": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor' || root.child('roles').child(auth.uid).val() === 'lector'",
+      ".write": "root.child('roles').child(auth.uid).val() === 'admin' || root.child('roles').child(auth.uid).val() === 'editor'",
+      "config": {
+        ".write": "root.child('roles').child(auth.uid).val() === 'admin'"
+      }
+    }
+  }
+}
