@@ -33,6 +33,11 @@ Realtime Database → pestaña **Reglas** → pegá el contenido de `database.ru
 3. En unos minutos queda en `https://TU-USUARIO.github.io/tammaro-gestion/`.
 4. En Firebase → Authentication → Settings → **Authorized domains**, agregá `TU-USUARIO.github.io`.
 
+## Identidad visual y presentaciones
+- El sistema usa el logo (`logo.png`) y sus colores: naranja `#E84820` y gris `#A0A0A0`. Títulos en tipografía script (Yellowtail) y rótulos en Montserrat itálica, que acompañan al logo.
+- **Presentación del mes:** en *Inicio*, botón «▶ Presentación del mes». Pantalla completa con flechas del teclado, deslizando en el celular, `F` para pantalla completa y `Esc` para salir. Se puede cambiar de mes desde la barra de abajo.
+- **Logo en 3D:** `presentacion.html` (abrir `…/tammaro-gestion/presentacion.html`). Se mueve solo y se gira arrastrando con el mouse o el dedo.
+
 ## Sumar gente
 1. Firebase → Authentication → Users → **Add user** (correo + contraseña, o que use «Olvidé mi contraseña»).
 2. La persona entra una vez; verá «Cuenta pendiente».
