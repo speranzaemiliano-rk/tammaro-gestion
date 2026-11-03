@@ -678,7 +678,7 @@ function pintarConfig(){
   h += '</div>' + (ed ? '<div class="botones"><button class="btn" id="cfGuardar">Guardar</button></div>' : '<p style="color:var(--tx2)">Solo un administrador puede cambiar estos valores.</p>') + '</div>';
   h += '<div class="card" style="margin-top:16px"><h3>Excel</h3><p style="color:var(--tx2)">Subí tu planilla (Productos, Ventas, Proveedores) o bajá todo lo cargado en el mismo formato. Estos botones también están arriba, en todas las pantallas.</p><div class="botones" style="justify-content:flex-start">' +
     (puedeEditar() ? '<button class="btn" id="cfSubir">📥 Subir Excel</button>' : '') + '<button class="btn sec" id="cfExportar">📤 Exportar Excel</button></div></div>';
-  h += '<div class="card" style="margin-top:16px"><h3>Al iniciar</h3><label style="display:flex;gap:8px;align-items:center;color:var(--tx);margin:8px 0 0"><input type="checkbox" id="cfInicio" style="width:auto"> Mostrar la presentación con el logo 3D al entrar al sistema (solo en este dispositivo)</label></div>';
+  h += '<div class="card" style="margin-top:16px"><h3>Al iniciar</h3><label style="display:flex;gap:8px;align-items:center;color:var(--tx);margin:8px 0 0"><input type="checkbox" id="cfInicio" style="width:auto"> Mostrar el resumen del mes y el logo 3D al entrar al sistema (solo en este dispositivo)</label></div>';
   $('tConfig').innerHTML = h;
   $('cfInicio').checked = !sinInicio(); $('cfInicio').onchange = function(){ guardarSinInicio(!this.checked); };
   if (ed) $('cfGuardar').onclick = function(){
@@ -1021,7 +1021,8 @@ function pintarUsuarios(){
    LOGO 3D: apila varias copias del logo real con profundidad (CSS 3D),
    lo mueve solo con un vaivén y se puede girar arrastrando.
    ==================================================================== */
-function logo3D(wrap){
+function logo3D(wrap, o){
+  o = o || {};
   var N = 26, paso = 1.8;
   wrap.classList.add('l3d-wrap');
   wrap.innerHTML = '<div class="l3d-esc"><div class="l3d-obj"></div><div class="l3d-sombra"></div></div>';
@@ -1031,10 +1032,14 @@ function logo3D(wrap){
     h += '<div class="l3d-capa" style="transform:translateZ(' + (-i * paso) + 'px);filter:brightness(' + br.toFixed(2) + ')"></div>';
   }
   obj.innerHTML = h;
-  var ry = 0, rx = -6, arrastrando = false, ult = 0, x0 = 0, y0 = 0, t0 = performance.now();
+  var ry = 0, rx = -6, arrastrando = false, ult = 0, x0 = 0, y0 = 0, t0 = performance.now(), prev = t0;
   function cuadro(t){
     if (!wrap.isConnected) return;
-    if (!arrastrando && t - ult > 2200){ ry = 34 * Math.sin((t - t0) / 1700); rx = -6 + 5 * Math.sin((t - t0) / 2300); }
+    var dt = Math.min(64, t - prev); prev = t;
+    if (!arrastrando && t - ult > 2200){
+      if (o.giro){ ry += dt * 0.055; if (ry > 180) ry -= 360; rx = -6 + 4 * Math.sin((t - t0) / 2300); }   // gira sin parar
+      else { ry = 34 * Math.sin((t - t0) / 1700); rx = -6 + 5 * Math.sin((t - t0) / 2300); }
+    }
     obj.style.transform = 'rotateX(' + rx.toFixed(1) + 'deg) rotateY(' + ry.toFixed(1) + 'deg)';
     requestAnimationFrame(cuadro);
   }
@@ -1051,13 +1056,29 @@ function logo3D(wrap){
 var P = null, inicioMostrado = false;
 function sinInicio(){ try { return localStorage.getItem('tammaro_sin_inicio') === '1'; } catch (e){ return false; } }
 function guardarSinInicio(v){ try { if (v) localStorage.setItem('tammaro_sin_inicio', '1'); else localStorage.removeItem('tammaro_sin_inicio'); } catch (e){} }
-// Al entrar: bienvenida con el logo 3D + resumen del último mes con ventas. Una vez por ingreso.
+// Al entrar: resumen del último mes y, al final, el logo de Tammaro en 3D girando. Una vez por ingreso.
 function arrancarPresentacion(){
   if (inicioMostrado) return; inicioMostrado = true;
   if (sinInicio()) return;
   var ms = {}; lista(S.ventas).forEach(function(v){ if (mesDe(v.fecha)) ms[mesDe(v.fecha)] = 1; });
-  var o = Object.keys(ms).sort(); if (!o.length) return;
-  presentarMes(o[o.length - 1], { inicio: true });
+  var o = Object.keys(ms).sort();
+  if (o.length) presentarMes(o[o.length - 1], { inicio: true }); else bienvenida();
+}
+function teclasBienv(e){ if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' '){ e.preventDefault(); cerrarPres(); } }
+function bienvenida(){
+  cerrarPres();
+  var el = document.createElement('div'); el.className = 'pres'; el.id = 'pres';
+  el.innerHTML = '<button class="cerrar" id="pxCerrar" title="Cerrar (Esc)">✕</button>' +
+    '<div class="sl act" style="inset:0"><div class="eti">Tammaro Distribuidora</div><div class="l3d-slot" style="width:100%;margin:3vh 0 2vh"></div>' +
+    '<div class="gran scr" style="font-size:clamp(40px,8vw,110px)">Bienvenido</div>' +
+    '<button class="btn" id="pxEntrar" style="margin-top:3vh;font-size:clamp(14px,2vw,20px);padding:12px 28px">Entrar al sistema →</button>' +
+    '<label style="display:flex;gap:6px;align-items:center;color:#c9c9c9;font-size:12px;margin-top:3vh"><input type="checkbox" id="pxNoMas" style="width:auto"> No mostrar al iniciar</label></div>';
+  document.body.appendChild(el);
+  logo3D(el.querySelector('.l3d-slot'), { giro: true });
+  $('pxCerrar').onclick = cerrarPres; $('pxEntrar').onclick = cerrarPres;
+  $('pxNoMas').onchange = function(){ guardarSinInicio(this.checked); };
+  document.addEventListener('keydown', teclasBienv);
+  $('pxEntrar').focus();
 }
 function resumenMes(m){
   var c = cfg(), vs = lista(S.ventas).filter(function(v){ return mesDe(v.fecha) === m; });
@@ -1092,8 +1113,7 @@ function slidesDe(m, inicio){
   var mt = mesTexto(m), mtc = mt.charAt(0).toUpperCase() + mt.slice(1);
   var tk = r.n ? r.fact / r.n : 0, totPrem = r.prem.f + r.clas.f;
   var s = [];
-  if (inicio) s.push('<div class="eti">Tammaro Distribuidora</div><div class="l3d-slot" style="width:100%;margin:3vh 0 2vh"></div><div class="gran scr" style="font-size:clamp(40px,8vw,110px)">Bienvenido</div><div class="sub">Resumen de ' + esc(mt) + ' · deslizá o usá las flechas ›</div>');
-  else s.push('<div class="eti">Presentación del mes</div><div class="l3d-slot" style="width:100%;margin:3vh 0 2vh"></div><div class="gran scr" style="font-size:clamp(34px,6vw,84px)">' + esc(mtc) + '</div>');
+  s.push('<div class="eti">Presentación del mes</div><div class="l3d-slot" style="width:100%;margin:3vh 0 2vh"></div><div class="gran scr" style="font-size:clamp(34px,6vw,84px)">' + esc(mtc) + '</div>');
   s.push('<div class="eti">Facturación</div><div class="gran" data-n="' + Math.round(r.fact) + '" data-f="money">$ 0</div>' +
     chipVar(r.fact, tieneAnt ? a.fact : 0, ant) +
     '<div class="sub">' + r.n + ' ventas · ' + r.unid + ' unidades · ticket promedio ' + money(tk) + '</div>');
@@ -1114,7 +1134,11 @@ function slidesDe(m, inicio){
   s.push('<div class="eti">Compras a proveedores</div><div class="gran" data-n="' + Math.round(r.compras) + '" data-f="money">$ 0</div>' +
     '<div class="sub">' + r.nCompras + ' compras en el mes</div>' +
     '<div class="chip ' + (r.pend > 0 ? 'baja' : 'sube') + '">' + (r.pend > 0 ? 'Pendiente de pago: ' + money(r.pend) + ' (' + r.nPend + ')' : 'Sin deuda con proveedores') + '</div>');
-  s.push('<div class="l3d-slot mini" style="width:100%;margin-bottom:2vh"></div><div class="gran scr" style="font-size:clamp(40px,8vw,110px)">¡Gracias!</div><div class="sub">Cierre de ' + esc(mt) + ' · Tammaro Distribuidora</div>' + (inicio ? '<button class="btn" style="margin-top:3vh;font-size:clamp(14px,2vw,20px);padding:12px 28px" onclick="cerrarPres()">Entrar al sistema →</button>' : ''));
+  s.push('<div class="l3d-slot mini" style="width:100%;margin-bottom:2vh"></div><div class="gran scr" style="font-size:clamp(40px,8vw,110px)">¡Gracias!</div><div class="sub">Cierre de ' + esc(mt) + ' · Tammaro Distribuidora</div>');
+  if (inicio){   // al iniciar el sistema: arranca en los números del mes y termina con el logo girando
+    s.shift();
+    s[s.length - 1] = '<div class="eti">Tammaro Distribuidora</div><div class="l3d-slot giro" style="width:100%;margin:3vh 0 2vh"></div><button class="btn" style="margin-top:2vh;font-size:clamp(14px,2vw,20px);padding:12px 28px" onclick="cerrarPres()">Entrar al sistema →</button>';
+  }
   return s;
 }
 function presentarMes(m, opt){
@@ -1143,7 +1167,7 @@ function presentarMes(m, opt){
 function armarPres(){
   var sl = slidesDe(P.m, P.inicio); P.n = sl.length;
   $('pxSlides').innerHTML = sl.map(function(h){ return '<div class="sl">' + h + '</div>'; }).join('');
-  Array.prototype.forEach.call($('pxSlides').querySelectorAll('.l3d-slot'), logo3D);
+  Array.prototype.forEach.call($('pxSlides').querySelectorAll('.l3d-slot'), function(n){ logo3D(n, { giro: n.classList.contains('giro') }); });
   $('pxPts').innerHTML = sl.map(function(_, i){ return '<i data-i="' + i + '"></i>'; }).join('');
   irSlide(P.i);
 }
@@ -1172,7 +1196,7 @@ function teclasPres(e){
 function cerrarPres(){
   var el = $('pres'); if (el) el.remove();
   if (document.fullscreenElement) document.exitFullscreen();
-  document.removeEventListener('keydown', teclasPres); P = null;
+  document.removeEventListener('keydown', teclasPres); document.removeEventListener('keydown', teclasBienv); P = null;
 }
 </script>
 <!-- FIN SCRIPT PRINCIPAL -->

@@ -36,7 +36,7 @@ Realtime Database → pestaña **Reglas** → pegá el contenido de `database.ru
 ## Identidad visual y presentaciones
 - El sistema usa el logo (`logo.png`) y sus colores: naranja `#E84820` y gris `#A0A0A0`. Títulos en tipografía script (Yellowtail) y rótulos en Montserrat itálica, que acompañan al logo.
 - **Presentación del mes:** en *Inicio*, botón «▶ Presentación del mes». Pantalla completa con flechas del teclado, deslizando en el celular, `F` para pantalla completa y `Esc` para salir. Se puede cambiar de mes desde la barra de abajo.
-- **Al entrar al sistema:** aparece sola una bienvenida con el logo en 3D, sigue con el resumen del último mes con ventas y termina con el botón «Entrar al sistema». Se puede saltar con ✕. Si no la querés, tildá «No mostrar al iniciar» o desactivala en Configuración → «Al iniciar» (se guarda en cada dispositivo).
+- **Al entrar al sistema:** se abre sola la presentación: arranca con los números del último mes con ventas (facturación, resultado, productos, Clásica vs Premium, compras) y **termina con el logo de Tammaro en 3D girando** y el botón «Entrar al sistema». Se puede saltar con ✕ o `Esc`. Si todavía no hay ventas cargadas, muestra solo el logo girando. Para no verla, tildá «No mostrar al iniciar» o desactivala en Configuración → «Al iniciar» (se guarda en cada dispositivo).
 - **Logo en 3D:** `presentacion.html` (abrir `…/tammaro-gestion/presentacion.html`). Se mueve solo y se gira arrastrando con el mouse o el dedo.
 
 ## Sumar gente
