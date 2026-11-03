@@ -111,6 +111,7 @@ canvas{max-height:280px}
 .pres .ctl button:hover{background:rgba(232,72,32,.8)}
 .pres .pts{display:flex;gap:8px}.pres .pts i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.3);transition:.3s}.pres .pts i.on{background:#E84820;width:26px;border-radius:6px}
 .pres .cerrar{position:absolute;top:14px;right:14px;z-index:3;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:50%;width:42px;height:42px;font-size:20px}
+.pres .ctl label{display:flex;gap:6px;align-items:center;color:#c9c9c9;font-size:12px;margin-left:6px}.pres .ctl label input{width:auto}
 .pres .mini{max-width:min(340px,60vw)}
 .acc{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .acc #quien{color:var(--tx2);font-size:12px;margin-right:4px}
@@ -290,7 +291,7 @@ window.addEventListener('load', function(){
 });
 
 function alCambiarSesion(user){
-  if (!user){ rol = ''; pantalla('pLogin'); return; }
+  if (!user){ rol = ''; inicioMostrado = false; cerrarPres(); pantalla('pLogin'); return; }
   // Se anota el usuario (para que el admin lo vea en "Usuarios") y se pide el rol.
   db.ref('usuarios/' + user.uid).update({ email: user.email, ultimoAcceso: new Date().toISOString() }).catch(function(){});
   db.ref('roles/' + user.uid).once('value').then(function(s){
@@ -300,7 +301,7 @@ function alCambiarSesion(user){
     $('navUsuarios').classList.toggle('oculto', rol !== 'admin');
     $('btnSubir').classList.toggle('oculto', !puedeEditar());
     pantalla('pApp');
-    return cargarTodo().then(function(){ irA('Inicio'); });
+    return cargarTodo().then(function(){ irA('Inicio'); arrancarPresentacion(); });
   }).catch(function(e){ console.error(e); toast('No se pudo leer tu rol: ' + e.message); });
 }
 
@@ -677,7 +678,9 @@ function pintarConfig(){
   h += '</div>' + (ed ? '<div class="botones"><button class="btn" id="cfGuardar">Guardar</button></div>' : '<p style="color:var(--tx2)">Solo un administrador puede cambiar estos valores.</p>') + '</div>';
   h += '<div class="card" style="margin-top:16px"><h3>Excel</h3><p style="color:var(--tx2)">Subí tu planilla (Productos, Ventas, Proveedores) o bajá todo lo cargado en el mismo formato. Estos botones también están arriba, en todas las pantallas.</p><div class="botones" style="justify-content:flex-start">' +
     (puedeEditar() ? '<button class="btn" id="cfSubir">📥 Subir Excel</button>' : '') + '<button class="btn sec" id="cfExportar">📤 Exportar Excel</button></div></div>';
+  h += '<div class="card" style="margin-top:16px"><h3>Al iniciar</h3><label style="display:flex;gap:8px;align-items:center;color:var(--tx);margin:8px 0 0"><input type="checkbox" id="cfInicio" style="width:auto"> Mostrar la presentación con el logo 3D al entrar al sistema (solo en este dispositivo)</label></div>';
   $('tConfig').innerHTML = h;
+  $('cfInicio').checked = !sinInicio(); $('cfInicio').onchange = function(){ guardarSinInicio(!this.checked); };
   if (ed) $('cfGuardar').onclick = function(){
     var o = {}; CAMPOS_CFG.forEach(function(f){ var v = num($('cf_' + f[0]).value); o[f[0]] = f[2] ? v / 100 : v; });
     db.ref(RAIZ + '/config').set(o).then(function(){ return cargarColeccion('config'); }).then(function(){ toast('Configuración guardada'); }).catch(function(e){ toast('Error: ' + e.message); });
@@ -1045,7 +1048,17 @@ function logo3D(wrap){
 /* ====================================================================
    PRESENTACIÓN DEL MES (pantalla completa, con flechas o deslizando)
    ==================================================================== */
-var P = null;
+var P = null, inicioMostrado = false;
+function sinInicio(){ try { return localStorage.getItem('tammaro_sin_inicio') === '1'; } catch (e){ return false; } }
+function guardarSinInicio(v){ try { if (v) localStorage.setItem('tammaro_sin_inicio', '1'); else localStorage.removeItem('tammaro_sin_inicio'); } catch (e){} }
+// Al entrar: bienvenida con el logo 3D + resumen del último mes con ventas. Una vez por ingreso.
+function arrancarPresentacion(){
+  if (inicioMostrado) return; inicioMostrado = true;
+  if (sinInicio()) return;
+  var ms = {}; lista(S.ventas).forEach(function(v){ if (mesDe(v.fecha)) ms[mesDe(v.fecha)] = 1; });
+  var o = Object.keys(ms).sort(); if (!o.length) return;
+  presentarMes(o[o.length - 1], { inicio: true });
+}
 function resumenMes(m){
   var c = cfg(), vs = lista(S.ventas).filter(function(v){ return mesDe(v.fecha) === m; });
   var r = { m: m, n: vs.length, unid: 0, fact: 0, gan: 0, prem: { n: 0, f: 0, g: 0 }, clas: { n: 0, f: 0, g: 0 }, prods: {} };
@@ -1074,12 +1087,13 @@ function chipDif(act, ant, etiqueta){
   var d = act - ant, sube = d >= 0;
   return '<div class="chip ' + (sube ? 'sube' : 'baja') + '">' + (sube ? '▲ +' : '▼ -') + money(Math.abs(d)).replace('$ ', '$ ') + ' vs ' + esc(etiqueta) + '</div>';
 }
-function slidesDe(m){
+function slidesDe(m, inicio){
   var r = resumenMes(m), a = resumenMes(mesAnterior(m)), tieneAnt = a.n > 0, ant = mesTexto(mesAnterior(m));
   var mt = mesTexto(m), mtc = mt.charAt(0).toUpperCase() + mt.slice(1);
   var tk = r.n ? r.fact / r.n : 0, totPrem = r.prem.f + r.clas.f;
   var s = [];
-  s.push('<div class="eti">Presentación del mes</div><div class="l3d-slot" style="width:100%;margin:3vh 0 2vh"></div><div class="gran scr" style="font-size:clamp(34px,6vw,84px)">' + esc(mtc) + '</div>');
+  if (inicio) s.push('<div class="eti">Tammaro Distribuidora</div><div class="l3d-slot" style="width:100%;margin:3vh 0 2vh"></div><div class="gran scr" style="font-size:clamp(40px,8vw,110px)">Bienvenido</div><div class="sub">Resumen de ' + esc(mt) + ' · deslizá o usá las flechas ›</div>');
+  else s.push('<div class="eti">Presentación del mes</div><div class="l3d-slot" style="width:100%;margin:3vh 0 2vh"></div><div class="gran scr" style="font-size:clamp(34px,6vw,84px)">' + esc(mtc) + '</div>');
   s.push('<div class="eti">Facturación</div><div class="gran" data-n="' + Math.round(r.fact) + '" data-f="money">$ 0</div>' +
     chipVar(r.fact, tieneAnt ? a.fact : 0, ant) +
     '<div class="sub">' + r.n + ' ventas · ' + r.unid + ' unidades · ticket promedio ' + money(tk) + '</div>');
@@ -1100,10 +1114,10 @@ function slidesDe(m){
   s.push('<div class="eti">Compras a proveedores</div><div class="gran" data-n="' + Math.round(r.compras) + '" data-f="money">$ 0</div>' +
     '<div class="sub">' + r.nCompras + ' compras en el mes</div>' +
     '<div class="chip ' + (r.pend > 0 ? 'baja' : 'sube') + '">' + (r.pend > 0 ? 'Pendiente de pago: ' + money(r.pend) + ' (' + r.nPend + ')' : 'Sin deuda con proveedores') + '</div>');
-  s.push('<div class="l3d-slot mini" style="width:100%;margin-bottom:2vh"></div><div class="gran scr" style="font-size:clamp(40px,8vw,110px)">¡Gracias!</div><div class="sub">Cierre de ' + esc(mt) + ' · Tammaro Distribuidora</div>');
+  s.push('<div class="l3d-slot mini" style="width:100%;margin-bottom:2vh"></div><div class="gran scr" style="font-size:clamp(40px,8vw,110px)">¡Gracias!</div><div class="sub">Cierre de ' + esc(mt) + ' · Tammaro Distribuidora</div>' + (inicio ? '<button class="btn" style="margin-top:3vh;font-size:clamp(14px,2vw,20px);padding:12px 28px" onclick="cerrarPres()">Entrar al sistema →</button>' : ''));
   return s;
 }
-function presentarMes(m){
+function presentarMes(m, opt){
   if (!m) return;
   cerrarPres();
   var meses = {}; lista(S.ventas).forEach(function(v){ if (mesDe(v.fecha)) meses[mesDe(v.fecha)] = 1; });
@@ -1111,11 +1125,13 @@ function presentarMes(m){
   var el = document.createElement('div'); el.className = 'pres'; el.id = 'pres';
   el.innerHTML = '<button class="cerrar" id="pxCerrar" title="Cerrar (Esc)">✕</button><div id="pxSlides"></div>' +
     '<div class="ctl"><select id="pxMes">' + orden.map(function(x){ return '<option value="' + x + '"' + (x === m ? ' selected' : '') + '>' + esc(mesTexto(x)) + '</option>'; }).join('') + '</select>' +
-    '<button id="pxPrev">‹</button><div class="pts" id="pxPts"></div><button id="pxNext">›</button><button id="pxFull" title="Pantalla completa">⛶</button></div>';
+    '<button id="pxPrev">‹</button><div class="pts" id="pxPts"></div><button id="pxNext">›</button><button id="pxFull" title="Pantalla completa">⛶</button>' +
+    (opt && opt.inicio ? '<label><input type="checkbox" id="pxNoMas"' + (sinInicio() ? ' checked' : '') + '> No mostrar al iniciar</label>' : '') + '</div>';
   document.body.appendChild(el);
-  P = { i: 0, m: m, n: 0, ts: 0 };
+  P = { i: 0, m: m, n: 0, ts: 0, inicio: !!(opt && opt.inicio) };
   armarPres();
   $('pxCerrar').onclick = cerrarPres;
+  if ($('pxNoMas')) $('pxNoMas').onchange = function(){ guardarSinInicio(this.checked); };
   $('pxPrev').onclick = function(){ irSlide(P.i - 1); };
   $('pxNext').onclick = function(){ irSlide(P.i + 1); };
   $('pxMes').onchange = function(){ P.m = this.value; P.i = 0; armarPres(); };
@@ -1125,7 +1141,7 @@ function presentarMes(m){
   document.addEventListener('keydown', teclasPres);
 }
 function armarPres(){
-  var sl = slidesDe(P.m); P.n = sl.length;
+  var sl = slidesDe(P.m, P.inicio); P.n = sl.length;
   $('pxSlides').innerHTML = sl.map(function(h){ return '<div class="sl">' + h + '</div>'; }).join('');
   Array.prototype.forEach.call($('pxSlides').querySelectorAll('.l3d-slot'), logo3D);
   $('pxPts').innerHTML = sl.map(function(_, i){ return '<i data-i="' + i + '"></i>'; }).join('');
