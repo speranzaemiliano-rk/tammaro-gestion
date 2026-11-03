@@ -112,6 +112,29 @@ canvas{max-height:280px}
 .pres .pts{display:flex;gap:8px}.pres .pts i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.3);transition:.3s}.pres .pts i.on{background:#E84820;width:26px;border-radius:6px}
 .pres .cerrar{position:absolute;top:14px;right:14px;z-index:3;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:50%;width:42px;height:42px;font-size:20px}
 .pres .mini{max-width:min(340px,60vw)}
+.acc{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.acc #quien{color:var(--tx2);font-size:12px;margin-right:4px}
+.acc .btn{padding:7px 12px;font-size:13px}
+@media(max-width:700px){.acc #quien{display:none}}
+/* calendario */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal .dh{text-align:center;font-family:var(--rotulo);font-style:italic;font-weight:800;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);padding:4px 0}
+.cal .dia{min-height:88px;border:1px solid var(--bd);border-radius:10px;background:var(--card);padding:6px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--tx);overflow:hidden}
+.cal .dia.vacio{background:transparent;border:0;cursor:default}
+.cal .dia.pos{background:rgba(24,128,56,.08)}.cal .dia.neg{background:rgba(217,48,37,.08)}
+.cal .dia.hoy{outline:2px solid var(--pri)}
+.cal .dia.sel{box-shadow:0 0 0 2px var(--pri) inset}
+.cal .dia b{font-family:var(--rotulo);font-style:italic;font-weight:800;font-size:15px}
+.cal .dia .fv{font-weight:700}
+.cal .dia .gn{font-size:10px;color:var(--tx2)}
+.cal .dia .ins{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--pri);border-radius:6px;padding:1px 5px;align-self:flex-start}
+.cal .dia .ins.cie{background:var(--gris)}
+@media(max-width:560px){.cal{gap:3px}.cal .dia{min-height:58px;padding:4px}.cal .dia .gn{display:none}.cal .dia .fv{font-size:10px}}
+.mesnav{display:flex;align-items:center;gap:8px}
+.mesnav button{background:var(--card);border:1px solid var(--bd);border-radius:50%;width:34px;height:34px;font-size:16px;color:var(--tx)}
+.mesnav strong{font-family:var(--marca);font-weight:400;font-size:26px;color:var(--pri);min-width:150px;text-align:center}
+.barra{height:12px;background:var(--bd);border-radius:20px;overflow:hidden;margin:8px 0 4px}
+.barra i{display:block;height:100%;background:var(--pri);border-radius:20px}
 </style>
 </head>
 <body>
@@ -149,10 +172,11 @@ canvas{max-height:280px}
   <header>
     <div class="top">
       <img class="marca" src="logo.png" alt="Tammaro Distribuidora">
-      <div><span id="quien" style="color:var(--tx2);font-size:12px;margin-right:8px"></span><button class="btn sec" id="btnSalir">Salir</button></div>
+      <div class="acc"><span id="quien"></span><button class="btn sec oculto" id="btnSubir">📥 Subir Excel</button><button class="btn sec" id="btnExportar">📤 Exportar Excel</button><button class="btn sec" id="btnSalir">Salir</button></div>
     </div>
     <nav id="nav">
       <button data-t="Inicio" class="act">Inicio</button>
+      <button data-t="Calendario">Calendario</button>
       <button data-t="Ventas">Ventas</button>
       <button data-t="Productos">Productos</button>
       <button data-t="Compras">Compras</button>
@@ -162,6 +186,7 @@ canvas{max-height:280px}
   </header>
   <main>
     <section id="tInicio"></section>
+    <section id="tCalendario" class="oculto"></section>
     <section id="tVentas" class="oculto"></section>
     <section id="tProductos" class="oculto"></section>
     <section id="tCompras" class="oculto"></section>
@@ -176,6 +201,8 @@ canvas{max-height:280px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <script>
 /* =====================================================================
@@ -271,6 +298,7 @@ function alCambiarSesion(user){
     if (!rol){ $('pdMail').textContent = user.email; $('pdUid').textContent = user.uid; pantalla('pPendiente'); return; }
     $('quien').textContent = user.email + ' · ' + rol;
     $('navUsuarios').classList.toggle('oculto', rol !== 'admin');
+    $('btnSubir').classList.toggle('oculto', !puedeEditar());
     pantalla('pApp');
     return cargarTodo().then(function(){ irA('Inicio'); });
   }).catch(function(e){ console.error(e); toast('No se pudo leer tu rol: ' + e.message); });
@@ -297,11 +325,11 @@ function cargarColeccion(n){ return db.ref(RAIZ + '/' + n).once('value').then(fu
 function cargarTodo(){ return Promise.all(['config','productos','ventas','compras'].map(cargarColeccion)); }
 
 /* ---------------- navegación ---------------- */
-var TABS = ['Inicio','Ventas','Productos','Compras','Config','Usuarios'];
+var TABS = ['Inicio','Calendario','Ventas','Productos','Compras','Config','Usuarios'];
 function irA(t){
   TABS.forEach(function(x){ $('t' + x).classList.toggle('oculto', x !== t); });
   Array.prototype.forEach.call($('nav').children, function(b){ b.classList.toggle('act', b.dataset.t === t); });
-  ({ Inicio: pintarInicio, Ventas: pintarVentas, Productos: pintarProductos, Compras: pintarCompras, Config: pintarConfig, Usuarios: pintarUsuarios })[t]();
+  ({ Inicio: pintarInicio, Calendario: pintarCalendario, Ventas: pintarVentas, Productos: pintarProductos, Compras: pintarCompras, Config: pintarConfig, Usuarios: pintarUsuarios })[t]();
 }
 $('nav').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if (b) irA(b.dataset.t); });
 function tabActual(){ for (var i = 0; i < TABS.length; i++) if (!$('t' + TABS[i]).classList.contains('oculto')) return TABS[i]; return 'Inicio'; }
@@ -400,7 +428,7 @@ function pintarInicio(){
   vs.forEach(function(v){ var k = v.sku || v.producto || '?'; var p = porProd[k] || (porProd[k] = { sku: v.sku, nombre: v.producto, unid: 0, fact: 0, gan: 0 }); var q = calcVenta(v); p.unid += num(v.cantidad); p.fact += q.fact; p.gan += q.gan; });
   var top = Object.keys(porProd).map(function(k){ return porProd[k]; }).sort(function(a, b){ return b.gan - a.gan; }).slice(0, 8);
 
-  var h = '<div class="fila"><h2 class="grow">Resumen</h2><button class="btn" id="inPres"' + (mesesOrd.length ? '' : ' disabled') + '>▶ Presentación del mes</button><select id="inMes">' +
+  var h = '<div class="fila"><h2 class="grow">Resumen</h2><button class="btn" id="inPres"' + (mesesOrd.length ? '' : ' disabled') + '>▶ Presentación del mes</button><button class="btn sec" id="inPdf"' + (mesesOrd.length ? '' : ' disabled') + '>📄 Informe PDF</button><select id="inMes">' +
     '<option value="todos"' + (sel === 'todos' ? ' selected' : '') + '>Todos los meses</option>' +
     mesesOrd.slice().reverse().map(function(m){ return '<option value="' + m + '"' + (m === sel ? ' selected' : '') + '>' + esc(mesTexto(m)) + '</option>'; }).join('') + '</select></div>';
   if (!ventas.length) h += '<div class="aviso">Todavía no hay ventas cargadas. Cargá la primera en <b>Ventas</b> o importá tu Excel desde <b>Configuración</b>.</div>';
@@ -417,6 +445,7 @@ function pintarInicio(){
        '</div></div>';
   $('tInicio').innerHTML = h;
   $('inMes').onchange = pintarInicio;
+  $('inPdf').onclick = function(){ informePDF(sel); };
   $('inPres').onclick = function(){ presentarMes(sel === 'todos' ? mesesOrd[mesesOrd.length - 1] : sel); };
 
   // Gráfico: facturación y ganancia por mes (siempre todos los meses, para comparar).
@@ -646,19 +675,15 @@ function pintarConfig(){
     h += '<div><label for="cf_' + f[0] + '">' + esc(f[1]) + '</label><input id="cf_' + f[0] + '" type="number" step="any" value="' + v + '"' + (ed ? '' : ' disabled') + '></div>';
   });
   h += '</div>' + (ed ? '<div class="botones"><button class="btn" id="cfGuardar">Guardar</button></div>' : '<p style="color:var(--tx2)">Solo un administrador puede cambiar estos valores.</p>') + '</div>';
-  if (puedeEditar()){
-    h += '<div class="card" style="margin-top:16px"><h3>Importar desde Excel</h3>' +
-      '<p style="color:var(--tx2)">Sirve para pasar el Tablero Financiero actual. Lee las hojas <b>Productos</b>, <b>Ventas</b> y <b>Proveedores</b>. No toca el archivo original.</p>' +
-      '<input type="file" id="impArchivo" accept=".xlsx,.xls"><div id="impInfo" class="prev oculto"></div>' +
-      '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--tx)"><input type="checkbox" id="impBorrar" style="width:auto"> Borrar lo que ya hay antes de importar (evita duplicados si importás dos veces)</label>' +
-      '<div class="botones"><button class="btn" id="impOk" disabled>Importar</button></div></div>';
-  }
+  h += '<div class="card" style="margin-top:16px"><h3>Excel</h3><p style="color:var(--tx2)">Subí tu planilla (Productos, Ventas, Proveedores) o bajá todo lo cargado en el mismo formato. Estos botones también están arriba, en todas las pantallas.</p><div class="botones" style="justify-content:flex-start">' +
+    (puedeEditar() ? '<button class="btn" id="cfSubir">📥 Subir Excel</button>' : '') + '<button class="btn sec" id="cfExportar">📤 Exportar Excel</button></div></div>';
   $('tConfig').innerHTML = h;
   if (ed) $('cfGuardar').onclick = function(){
     var o = {}; CAMPOS_CFG.forEach(function(f){ var v = num($('cf_' + f[0]).value); o[f[0]] = f[2] ? v / 100 : v; });
     db.ref(RAIZ + '/config').set(o).then(function(){ return cargarColeccion('config'); }).then(function(){ toast('Configuración guardada'); }).catch(function(e){ toast('Error: ' + e.message); });
   };
-  if (puedeEditar()) prepararImport();
+  if ($('cfSubir')) $('cfSubir').onclick = abrirImportar;
+  $('cfExportar').onclick = exportarExcel;
 }
 
 // ---- Lectura del Excel (función pura: recibe el libro y devuelve los datos) ----
@@ -688,7 +713,7 @@ function leerExcel(XL, wb, packDefecto){
     var pr = porSku[sku];
     var costoTotal = typeof r[6] === 'number' ? r[6] : (pr ? pr.costo * cant : 0);
     out.ventas.push({ nro: r[0], fecha: fecha, sku: sku, producto: r[3] ? String(r[3]).trim() : (pr ? pr.nombre : ''), cantidad: cant, precio: r[5],
-      tipo: pr ? pr.tipo : 'Clasica', descMeli: num(r[7]), impuestos: num(r[8]), bonif: num(r[9]), envio: num(r[10]), costoU: r2(costoTotal / cant), packU: pr && pr.packaging != null ? pr.packaging : packDefecto });
+      tipo: (r[13] === 'Premium' || r[13] === 'Clasica') ? r[13] : (pr ? pr.tipo : 'Clasica'), descMeli: num(r[7]), impuestos: num(r[8]), bonif: num(r[9]), envio: num(r[10]), costoU: r2(costoTotal / cant), packU: pr && pr.packaging != null ? pr.packaging : packDefecto });
   });
   (fc || []).slice(1).forEach(function(r){
     var fecha = serialAISO(r[0]); if (!fecha || typeof r[4] !== 'number') return;
@@ -700,38 +725,267 @@ function leerExcel(XL, wb, packDefecto){
   return out;
 }
 
-var impDatos = null;
-function prepararImport(){
+/* ====================================================================
+   SUBIR EXCEL (ventana): suma solo lo nuevo o reemplaza todo
+   ==================================================================== */
+var impDatos = null, impPlan = null;
+function claveProd(p){ return String(p.sku || '').trim().toLowerCase() + '|' + String(p.nombre || '').trim().toLowerCase(); }
+function claveVenta(v){ return [v.fecha, v.nro, String(v.sku || '').trim().toLowerCase(), num(v.cantidad), r2(num(v.precio))].join('|'); }
+function claveCompra(x){ return [x.fecha, String(x.sku || '').trim().toLowerCase(), num(x.cantidad), r2(num(x.costoU))].join('|'); }
+var CAMPOS_PROD = ['costo', 'precio', 'tipo', 'comision', 'costoFijoML', 'margenObj', 'packaging'];
+// Decide qué se agrega, qué ya estaba y qué productos cambian de costo/precio.
+function planImport(d, modo, actualizar){
+  var plan = { prod: { nuevos: [], upd: [], ya: 0 }, ven: { nuevas: [], ya: 0 }, com: { nuevas: [], ya: 0 } };
+  if (modo === 'reemplazar'){ plan.prod.nuevos = d.productos; plan.ven.nuevas = d.ventas; plan.com.nuevas = d.compras; return plan; }
+  var ep = {}; lista(S.productos).forEach(function(p){ ep[claveProd(p)] = p; });
+  d.productos.forEach(function(p){
+    var k = claveProd(p), e = ep[k];
+    if (!e){ plan.prod.nuevos.push(p); ep[k] = { sinId: true }; return; }
+    plan.prod.ya++;
+    if (actualizar && e.id){
+      var cambios = {}; CAMPOS_PROD.forEach(function(f){ if (p[f] != null && p[f] !== e[f]) cambios[f] = p[f]; });
+      if (Object.keys(cambios).length) plan.prod.upd.push({ id: e.id, cambios: cambios });
+    }
+  });
+  var ev = {}; lista(S.ventas).forEach(function(v){ ev[claveVenta(v)] = 1; });
+  d.ventas.forEach(function(v){ var k = claveVenta(v); if (ev[k]) plan.ven.ya++; else { plan.ven.nuevas.push(v); ev[k] = 1; } });
+  var ec = {}; lista(S.compras).forEach(function(x){ ec[claveCompra(x)] = 1; });
+  d.compras.forEach(function(x){ var k = claveCompra(x); if (ec[k]) plan.com.ya++; else { plan.com.nuevas.push(x); ec[k] = 1; } });
+  return plan;
+}
+function abrirImportar(){
+  if (!puedeEditar()){ toast('Tu rol no permite cargar datos.'); return; }
+  impDatos = null; impPlan = null;
+  $('modalRaiz').innerHTML = '<div class="fondo"><div class="modal"><h3>Subir Excel</h3>' +
+    '<p style="color:var(--tx2);margin:6px 0 0">Elegí el Excel con las hojas <b>Productos</b>, <b>Ventas</b> y <b>Proveedores</b>: el de tu Tablero o el que baja «Exportar». El archivo original no se modifica.</p>' +
+    '<input type="file" id="impArchivo" accept=".xlsx,.xls" style="margin-top:12px"><div id="impInfo" class="prev oculto"></div>' +
+    '<label style="display:flex;gap:8px;align-items:flex-start;color:var(--tx);margin-top:12px"><input type="radio" name="impModo" value="nuevo" checked style="width:auto;margin-top:3px"><span><b>Sumar solo lo nuevo</b> (recomendado): lo que ya cargaste no se repite.</span></label>' +
+    '<label style="display:flex;gap:8px;align-items:flex-start;color:var(--tx);margin-top:6px"><input type="radio" name="impModo" value="reemplazar" style="width:auto;margin-top:3px"><span><b>Reemplazar todo</b>: borra lo que hay y deja lo del Excel.</span></label>' +
+    '<label style="display:flex;gap:8px;align-items:flex-start;color:var(--tx);margin-top:12px"><input type="checkbox" id="impAct" checked style="width:auto;margin-top:3px"><span>Actualizar costos y precios de los productos que ya existen</span></label>' +
+    '<div class="err" id="impErr"></div><div class="botones"><button class="btn sec" id="impCancel">Cancelar</button><button class="btn" id="impOk" disabled>Importar</button></div></div></div>';
+  $('impCancel').onclick = function(){ $('modalRaiz').innerHTML = ''; };
+  function modo(){ return document.querySelector('input[name=impModo]:checked').value; }
+  function refrescar(){
+    if (!impDatos) return;
+    impPlan = planImport(impDatos, modo(), $('impAct').checked);
+    var p = impPlan, i = $('impInfo'); i.classList.remove('oculto');
+    var rem = modo() === 'reemplazar';
+    i.innerHTML = rem
+      ? 'Se cargarán <b>' + p.prod.nuevos.length + '</b> productos, <b>' + p.ven.nuevas.length + '</b> ventas y <b>' + p.com.nuevas.length + '</b> compras. <b>Lo que hay hoy se borra.</b>'
+      : 'Productos: <b>' + p.prod.nuevos.length + '</b> nuevos' + (p.prod.ya ? ', ' + p.prod.ya + ' ya existían' + (p.prod.upd.length ? ' (' + p.prod.upd.length + ' con costo/precio distinto)' : '') : '') + '<br>' +
+        'Ventas: <b>' + p.ven.nuevas.length + '</b> nuevas' + (p.ven.ya ? ', ' + p.ven.ya + ' repetidas (se saltean)' : '') + '<br>' +
+        'Compras: <b>' + p.com.nuevas.length + '</b> nuevas' + (p.com.ya ? ', ' + p.com.ya + ' repetidas (se saltean)' : '');
+    if (impDatos.avisos.length) i.innerHTML += '<br><small>' + impDatos.avisos.slice(0, 5).map(esc).join('<br>') + '</small>';
+    $('impOk').disabled = rem ? !(p.prod.nuevos.length || p.ven.nuevas.length || p.com.nuevas.length) : !(p.prod.nuevos.length || p.prod.upd.length || p.ven.nuevas.length || p.com.nuevas.length);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=impModo], #impAct'), function(e){ e.onchange = refrescar; });
   $('impArchivo').onchange = function(){
-    var f = this.files[0]; if (!f) return;
+    var f = this.files[0]; if (!f) return; $('impErr').textContent = '';
     var rd = new FileReader();
     rd.onload = function(){
-      try {
-        var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' });
-        impDatos = leerExcel(XLSX, wb, cfg().packaging);
-        var i = $('impInfo'); i.classList.remove('oculto');
-        i.innerHTML = 'Encontré <b>' + impDatos.productos.length + '</b> productos, <b>' + impDatos.ventas.length + '</b> ventas y <b>' + impDatos.compras.length + '</b> compras.' +
-          (impDatos.avisos.length ? '<br><small>' + impDatos.avisos.slice(0, 6).map(esc).join('<br>') + '</small>' : '');
-        $('impOk').disabled = !(impDatos.productos.length || impDatos.ventas.length || impDatos.compras.length);
-      } catch (e){ toast('No pude leer el Excel: ' + e.message); }
+      try { impDatos = leerExcel(XLSX, XLSX.read(new Uint8Array(rd.result), { type: 'array' }), cfg().packaging); refrescar(); }
+      catch (e){ $('impErr').textContent = 'No pude leer el Excel: ' + e.message; }
     };
     rd.readAsArrayBuffer(f);
   };
   $('impOk').onclick = function(){
-    if (!impDatos) return;
-    var borrar = $('impBorrar').checked;
-    if (!confirm('Se van a importar ' + impDatos.productos.length + ' productos, ' + impDatos.ventas.length + ' ventas y ' + impDatos.compras.length + ' compras' + (borrar ? ' BORRANDO lo que ya hay' : ' (se suman a lo que ya hay)') + '. ¿Seguimos?')) return;
-    $('impOk').disabled = true;
-    var tareas = [['productos', impDatos.productos], ['ventas', impDatos.ventas], ['compras', impDatos.compras]].map(function(par){
-      var obj = {}; par[1].forEach(function(x){ obj[db.ref(RAIZ + '/' + par[0]).push().key] = limpiar(x); });
-      var ref = db.ref(RAIZ + '/' + par[0]);
-      if (!par[1].length) return Promise.resolve();
-      return borrar ? ref.set(obj) : ref.update(obj);
-    });
-    Promise.all(tareas).then(cargarTodo).then(function(){ toast('Importación lista'); impDatos = null; irA('Inicio'); })
-      .catch(function(e){ toast('Falló la importación: ' + e.message); $('impOk').disabled = false; });
+    if (!impPlan) return;
+    var rem = modo() === 'reemplazar';
+    if (rem && !confirm('Esto BORRA todos los productos, ventas y compras actuales y los reemplaza por el Excel. ¿Seguimos?')) return;
+    $('impOk').disabled = true; var pl = impPlan, trabajo;
+    if (rem){
+      trabajo = Promise.all([['productos', pl.prod.nuevos], ['ventas', pl.ven.nuevas], ['compras', pl.com.nuevas]].map(function(par){
+        if (!par[1].length) return Promise.resolve();
+        var obj = {}; par[1].forEach(function(x){ obj[db.ref(RAIZ + '/' + par[0]).push().key] = limpiar(x); });
+        return db.ref(RAIZ + '/' + par[0]).set(obj);
+      }));
+    } else {
+      var up = {};
+      [['productos', pl.prod.nuevos], ['ventas', pl.ven.nuevas], ['compras', pl.com.nuevas]].forEach(function(par){
+        par[1].forEach(function(x){ up[RAIZ + '/' + par[0] + '/' + db.ref(RAIZ + '/' + par[0]).push().key] = limpiar(x); });
+      });
+      pl.prod.upd.forEach(function(u){ Object.keys(u.cambios).forEach(function(f){ up[RAIZ + '/productos/' + u.id + '/' + f] = u.cambios[f]; }); });
+      trabajo = Object.keys(up).length ? db.ref().update(up) : Promise.resolve();
+    }
+    trabajo.then(cargarTodo).then(function(){
+      $('modalRaiz').innerHTML = '';
+      toast(rem ? 'Importación lista' : 'Listo: ' + pl.ven.nuevas.length + ' ventas, ' + pl.com.nuevas.length + ' compras y ' + pl.prod.nuevos.length + ' productos nuevos');
+      repintar();
+    }).catch(function(e){ $('impErr').textContent = 'Falló la importación: ' + e.message; $('impOk').disabled = false; });
   };
 }
+
+/* ====================================================================
+   EXPORTAR A EXCEL: mismas hojas que el importador (se puede volver a subir)
+   ==================================================================== */
+function fechaSerial(iso){ var p = (iso || '').split('-'); return p.length === 3 ? Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000) + 25569 : ''; }
+function hojaDe(filas, colFecha){
+  var ws = XLSX.utils.aoa_to_sheet(filas);
+  if (colFecha != null) for (var r = 1; r < filas.length; r++){ var c = ws[XLSX.utils.encode_cell({ r: r, c: colFecha })]; if (c && typeof c.v === 'number') c.z = 'dd/mm/yyyy'; }
+  ws['!cols'] = filas[0].map(function(h, i){ return { wch: i === 2 || i === 3 ? 42 : 14 }; });
+  return ws;
+}
+function exportarExcel(){
+  if (!window.XLSX){ toast('No se pudo cargar el generador de Excel.'); return; }
+  var wb = XLSX.utils.book_new();
+  var ps = lista(S.productos).sort(function(a, b){ return String(a.sku).localeCompare(String(b.sku)); });
+  var fp = [['SKU', 'Foto', 'Producto', 'Costo Producto', 'Packaging', 'Costo Total', 'Tipo Publicacion', 'Comision', '', 'Impuestos', '', 'Publicidad', '', 'Envio gratis', 'Costo Fijo ML', 'Margen Objetivo', 'Precio de venta', 'Ganancia por unidad', 'Margen', 'Sugerido Clasica', 'Sugerido Premium']];
+  ps.forEach(function(p){ var k = calcProd(p), kc = calcProd(p, 'Clasica'), kp = calcProd(p, 'Premium');
+    fp.push([p.sku, '', p.nombre, num(p.costo), k.pack, r2(k.costoTotal), p.tipo || 'Clasica', k.com, '', cfg().impuestos, '', cfg().publicidad, '', '', num(p.costoFijoML), k.mObj, num(p.precio), r2(k.gananciaU), r2(k.margen), kc.sugerido ? r2(kc.sugerido) : '', kp.sugerido ? r2(kp.sugerido) : '']); });
+  XLSX.utils.book_append_sheet(wb, hojaDe(fp), 'Productos');
+  var vs = lista(S.ventas).sort(function(a, b){ return String(a.fecha).localeCompare(String(b.fecha)) || num(a.nro) - num(b.nro); });
+  var fv = [['Venta Numero', 'Fecha', 'SKU', 'Producto', 'Cantidad', 'Precio Venta', 'Costo', 'Descuento MELI', 'Descuento IMPUESTOS', 'Descuentos y bonificaciones', 'Envio', 'Facturacion', 'Ganancia Total', 'Publicacion']];
+  vs.forEach(function(v){ var k = calcVenta(v);
+    fv.push([num(v.nro), fechaSerial(v.fecha), v.sku || '', v.producto || '', num(v.cantidad), num(v.precio), r2(num(v.costoU) * num(v.cantidad)), num(v.descMeli), num(v.impuestos), num(v.bonif), num(v.envio), r2(k.fact), r2(k.gan), v.tipo || 'Clasica']); });
+  XLSX.utils.book_append_sheet(wb, hojaDe(fv, 1), 'Ventas');
+  var cs = lista(S.compras).sort(function(a, b){ return String(a.fecha).localeCompare(String(b.fecha)); });
+  var fc = [['Fecha', 'SKU', 'Producto', 'Cantidad', 'Costo productos', 'Total', 'Total MES', 'Estado', 'Nota']];
+  cs.forEach(function(x){ fc.push([fechaSerial(x.fecha), x.sku || '', x.producto || '', num(x.cantidad), num(x.costoU), r2(num(x.cantidad) * num(x.costoU)), '', x.estado || 'PENDIENTE', x.nota || '']); });
+  XLSX.utils.book_append_sheet(wb, hojaDe(fc, 0), 'Proveedores');
+  var meses = {}; vs.forEach(function(v){ if (mesDe(v.fecha)) meses[mesDe(v.fecha)] = 1; }); cs.forEach(function(x){ if (mesDe(x.fecha)) meses[mesDe(x.fecha)] = 1; });
+  var fr = [['Mes', 'Ventas', 'Unidades', 'Facturacion', 'Ganancia bruta', 'Costos fijos', 'Ganancia neta', 'Unidades Premium', 'Compras']];
+  Object.keys(meses).sort().forEach(function(m){ var r = resumenMes(m); fr.push([mesTexto(m), r.n, r.unid, r2(r.fact), r2(r.gan), r.fijos, r2(r.neta), r.prem.n, r2(r.compras)]); });
+  var wr = XLSX.utils.aoa_to_sheet(fr); wr['!cols'] = fr[0].map(function(){ return { wch: 16 }; });
+  XLSX.utils.book_append_sheet(wb, wr, 'Resumen mensual');
+  XLSX.writeFile(wb, 'Tammaro_' + hoyISO() + '.xlsx');
+  toast('Excel exportado: ' + ps.length + ' productos, ' + vs.length + ' ventas, ' + cs.length + ' compras');
+}
+
+/* ====================================================================
+   CALENDARIO (con el inicio de mes y el punto de equilibrio)
+   ==================================================================== */
+var calMes = '', calDia = 0;
+function diasEnMes(m){ var p = m.split('-'); return new Date(+p[0], +p[1], 0).getDate(); }
+function sumarMes(m, d){ var p = m.split('-'), y = +p[0], mm = +p[1] + d; while (mm < 1){ mm += 12; y--; } while (mm > 12){ mm -= 12; y++; } return y + '-' + String(mm).padStart(2, '0'); }
+function corto(n){ n = Math.round(n); var a = Math.abs(n), t = a >= 1e6 ? (a / 1e6).toFixed(1).replace('.', ',') + 'M' : (a >= 1e3 ? Math.round(a / 1e3) + 'k' : String(a)); return (n < 0 ? '-' : '') + '$' + t; }
+function pintarCalendario(){
+  if (!calMes) calMes = mesDe(hoyISO());
+  var m = calMes, p = m.split('-'), nd = diasEnMes(m), primero = (new Date(+p[0], +p[1] - 1, 1).getDay() + 6) % 7;
+  var hoy = hoyISO(), esActual = mesDe(hoy) === m, esFuturo = m > mesDe(hoy);
+  var vs = lista(S.ventas).filter(function(v){ return mesDe(v.fecha) === m; });
+  var cs = lista(S.compras).filter(function(x){ return mesDe(x.fecha) === m; });
+  var porDia = {};
+  function dia(d){ return porDia[d] || (porDia[d] = { n: 0, u: 0, f: 0, g: 0, c: 0 }); }
+  vs.forEach(function(v){ var o = dia(+v.fecha.slice(8, 10)), k = calcVenta(v); o.n++; o.u += num(v.cantidad); o.f += k.fact; o.g += k.gan; });
+  cs.forEach(function(x){ dia(+x.fecha.slice(8, 10)).c++; });
+  var r = resumenMes(m), a = resumenMes(sumarMes(m, -1));
+  var falta = Math.max(0, r.fijos - r.gan), gv = r.n ? r.gan / r.n : (a.n ? a.gan / a.n : 0);
+  var ventasNec = falta > 0 && gv > 0 ? Math.ceil(falta / gv) : 0;
+  var pcub = r.fijos ? Math.min(100, Math.max(0, r.gan / r.fijos * 100)) : 0;
+  var mt = mesTexto(m);
+  var h = '<div class="fila"><h2 class="grow">Calendario</h2><div class="mesnav"><button id="calPrev">‹</button><strong>' + esc(mt.charAt(0).toUpperCase() + mt.slice(1)) + '</strong><button id="calNext">›</button></div>' +
+    '<button class="btn sec" id="calHoy">Hoy</button><button class="btn sec" id="calPdf"' + (r.n || r.compras ? '' : ' disabled') + '>📄 Informe PDF</button><button class="btn" id="calPres"' + (r.n ? '' : ' disabled') + '>▶ Presentación</button></div>';
+  // ---- Inicio de mes ----
+  h += '<div class="dos" style="margin:0 0 16px"><div class="card"><h3 style="margin-bottom:8px">Inicio de ' + esc(mt) + '</h3>' +
+    '<p style="margin:0 0 6px;color:var(--tx2)">Cómo cerró ' + esc(mesTexto(sumarMes(m, -1))) + ':</p>' +
+    (a.n ? '<div>Facturación <b>' + money(a.fact) + '</b> · Ganancia bruta <b>' + money(a.gan) + '</b> · Ganancia neta <b class="' + (a.neta >= 0 ? 'pos' : 'neg') + '">' + money(a.neta) + '</b></div>' : '<div style="color:var(--tx2)">Sin ventas cargadas ese mes.</div>') +
+    '</div><div class="card"><h3 style="margin-bottom:8px">Para cubrir los costos fijos</h3>' +
+    '<div>Costos fijos del mes: <b>' + money(r.fijos) + '</b> <small style="color:var(--tx2)">(contadora + monotributo)</small></div>' +
+    '<div class="barra"><i style="width:' + pcub.toFixed(0) + '%"></i></div>' +
+    '<div>' + (falta > 0 ? 'Llevás <b>' + money(r.gan) + '</b> de ganancia bruta. Faltan <b class="neg">' + money(falta) + '</b>' + (ventasNec ? ' (≈ <b>' + ventasNec + '</b> ventas como las de ' + (r.n ? 'este mes' : 'el mes pasado') + ')' : '') + '.' : '✅ Ya cubriste los costos fijos. Lo que sigue es ganancia neta: <b class="pos">' + money(r.neta) + '</b>.') + '</div></div></div>';
+  // ---- grilla ----
+  h += '<div class="cal">' + ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(function(x){ return '<div class="dh">' + x + '</div>'; }).join('');
+  for (var i = 0; i < primero; i++) h += '<div class="dia vacio"></div>';
+  for (var d = 1; d <= nd; d++){
+    var iso = m + '-' + String(d).padStart(2, '0'), o = porDia[d], cl = 'dia' + (o && o.n ? (o.g >= 0 ? ' pos' : ' neg') : '') + (iso === hoy ? ' hoy' : '') + (d === calDia ? ' sel' : '');
+    h += '<button class="' + cl + '" data-d="' + d + '"><b>' + d + '</b>' + (d === 1 ? '<span class="ins">Inicio</span>' : '') + (d === nd ? '<span class="ins cie">Cierre</span>' : '') +
+      (o && o.n ? '<span class="fv">' + corto(o.f) + '</span><span class="gn">' + o.n + ' vta · ' + (o.g >= 0 ? '+' : '') + corto(o.g) + '</span>' : '') + (o && o.c ? '<span class="gn">🛒 ' + o.c + (o.c > 1 ? ' compras' : ' compra') + '</span>' : '') + '</button>';
+  }
+  h += '</div>';
+  // ---- detalle del día elegido ----
+  if (calDia >= 1 && calDia <= nd){
+    var isoD = m + '-' + String(calDia).padStart(2, '0');
+    var vd = vs.filter(function(v){ return v.fecha === isoD; }), cd = cs.filter(function(x){ return x.fecha === isoD; });
+    h += '<div class="card" style="margin-top:16px"><h3 style="margin-bottom:8px">' + fechaCorta(isoD) + '</h3>' +
+      (vd.length || cd.length ? '<div class="tw"><table style="min-width:0"><tbody>' +
+        vd.map(function(v){ var k = calcVenta(v); return '<tr><td class="nom">' + esc(v.producto) + ' <small style="color:var(--tx2)">' + esc(v.sku) + ' · ' + esc(v.cantidad) + ' u.</small></td><td class="n">' + money(k.fact) + '</td><td class="n ' + (k.gan >= 0 ? 'pos' : 'neg') + '">' + money(k.gan) + '</td></tr>'; }).join('') +
+        cd.map(function(x){ return '<tr><td class="nom">🛒 Compra: ' + esc(x.producto) + ' <small style="color:var(--tx2)">' + esc(x.cantidad) + ' u.</small></td><td class="n">' + money(num(x.cantidad) * num(x.costoU)) + '</td><td><span class="pill ' + (x.estado === 'PAGADO' ? 'ok' : 'mal') + '">' + esc(x.estado || 'PENDIENTE') + '</span></td></tr>'; }).join('') +
+        '</tbody></table></div>' : '<div class="vacio">Sin movimientos este día.</div>') + '</div>';
+  }
+  $('tCalendario').innerHTML = h;
+  $('calPrev').onclick = function(){ calMes = sumarMes(calMes, -1); calDia = 0; pintarCalendario(); };
+  $('calNext').onclick = function(){ calMes = sumarMes(calMes, 1); calDia = 0; pintarCalendario(); };
+  $('calHoy').onclick = function(){ calMes = mesDe(hoyISO()); calDia = +hoyISO().slice(8, 10); pintarCalendario(); };
+  $('calPdf').onclick = function(){ informePDF(calMes); };
+  $('calPres').onclick = function(){ presentarMes(calMes); };
+  Array.prototype.forEach.call($('tCalendario').querySelectorAll('.dia[data-d]'), function(b){ b.onclick = function(){ calDia = calDia === +b.dataset.d ? 0 : +b.dataset.d; pintarCalendario(); }; });
+}
+
+/* ====================================================================
+   INFORME EN PDF (jsPDF + autoTable): mes elegido o todo el período
+   ==================================================================== */
+function logoDataURL(){
+  return new Promise(function(res){
+    var im = new Image();
+    im.onload = function(){ try { var c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); res({ url: c.toDataURL('image/png'), w: c.width, h: c.height }); } catch (e){ res(null); } };
+    im.onerror = function(){ res(null); }; im.src = 'logo.png';
+  });
+}
+function lat(s){ return String(s == null ? '' : s).replace(/[^\x20-\xFF]/g, ''); }   // el PDF base solo trae letras latinas
+function informePDF(m){
+  if (!window.jspdf || !window.jspdf.jsPDF){ toast('No se pudo cargar el generador de PDF. Revisá tu conexión.'); return; }
+  logoDataURL().then(function(lg){
+    var doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }), todos = m === 'todos';
+    var etiqueta = todos ? 'todo el período' : mesTexto(m), L = 14, R = 196, naranja = [232, 72, 32], gris = [120, 120, 120];
+    var vs = lista(S.ventas).filter(function(v){ return todos || mesDe(v.fecha) === m; }).sort(function(a, b){ return String(a.fecha).localeCompare(String(b.fecha)) || num(a.nro) - num(b.nro); });
+    var cs = lista(S.compras).filter(function(x){ return todos || mesDe(x.fecha) === m; }).sort(function(a, b){ return String(a.fecha).localeCompare(String(b.fecha)); });
+    var mesesTodos = {}; lista(S.ventas).forEach(function(v){ if (mesDe(v.fecha)) mesesTodos[mesDe(v.fecha)] = 1; });
+    var nMes = todos ? Math.max(Object.keys(mesesTodos).length, 1) : 1, c = cfg();
+    var fact = 0, gan = 0, unid = 0, prem = 0, premF = 0, prods = {};
+    vs.forEach(function(v){ var k = calcVenta(v); fact += k.fact; gan += k.gan; unid += num(v.cantidad); if (v.tipo === 'Premium'){ prem += num(v.cantidad); premF += k.fact; }
+      var id = v.sku || v.producto || '?', p = prods[id] || (prods[id] = { nombre: v.producto || v.sku, sku: v.sku, u: 0, f: 0, g: 0 }); p.u += num(v.cantidad); p.f += k.fact; p.g += k.gan; });
+    var fijos = (c.contadora + c.monotributo) * nMes, neta = gan - fijos, comp = cs.reduce(function(a, x){ return a + num(x.cantidad) * num(x.costoU); }, 0);
+    var pend = lista(S.compras).filter(function(x){ return x.estado === 'PENDIENTE'; }).reduce(function(a, x){ return a + num(x.cantidad) * num(x.costoU); }, 0);
+    // encabezado
+    if (lg){ var w = 54; doc.addImage(lg.url, 'PNG', L, 9, w, w * lg.h / lg.w); }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.setTextColor(30, 30, 30);
+    doc.text(lat('Informe de ' + etiqueta), R, 17, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120, 120, 120);
+    doc.text('Generado el ' + fechaCorta(hoyISO()), R, 23, { align: 'right' });
+    doc.setDrawColor(naranja[0], naranja[1], naranja[2]); doc.setLineWidth(0.8); doc.line(L, 31, R, 31);
+    var base = { styles: { fontSize: 8.5, cellPadding: 2 }, headStyles: { fillColor: naranja, textColor: 255, fontStyle: 'bold' }, alternateRowStyles: { fillColor: [247, 247, 247] }, margin: { left: L, right: 14, bottom: 16 } };
+    function titulo(t, y){ doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(naranja[0], naranja[1], naranja[2]); doc.text(lat(t), L, y); }
+    function siguiente(){ var y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 36) + 9; if (y > 262){ doc.addPage(); y = 18; } return y; }
+    // resumen
+    doc.autoTable(Object.assign({}, base, { startY: 36, theme: 'plain', styles: { fontSize: 10, cellPadding: 2.2 },
+      columnStyles: { 0: { fontStyle: 'bold', textColor: gris, cellWidth: 38 }, 1: { halign: 'right', fontStyle: 'bold', cellWidth: 50 }, 2: { fontStyle: 'bold', textColor: gris, cellWidth: 38 }, 3: { halign: 'right', fontStyle: 'bold' } },
+      body: [
+        ['Facturación', lat(money(fact)), 'Ventas / unidades', vs.length + ' / ' + unid],
+        ['Ganancia bruta', lat(money(gan)), 'Ticket promedio', lat(money(vs.length ? fact / vs.length : 0))],
+        ['Costos fijos', lat(money(fijos)), 'Ventas Premium', prem + ' u. (' + lat(money(premF)) + ')'],
+        ['Ganancia neta', lat(money(neta)), 'Compras del período', lat(money(comp))],
+        ['Margen neto', fact ? pct(neta / fact) : '-', 'Pendiente de pago (prov.)', lat(money(pend))]] }));
+    if (todos){
+      var rm = Object.keys(mesesTodos).sort().map(function(x){ var q = resumenMes(x); return [lat(mesTexto(x)), q.n, q.unid, lat(money(q.fact)), lat(money(q.gan)), lat(money(q.neta))]; });
+      var y0 = siguiente(); titulo('Resumen por mes', y0);
+      doc.autoTable(Object.assign({}, base, { startY: y0 + 3, head: [['Mes', 'Ventas', 'Unid.', 'Facturación', 'Ganancia bruta', 'Ganancia neta']], body: rm, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } } }));
+    }
+    var top = Object.keys(prods).map(function(k){ return prods[k]; }).sort(function(a, b){ return b.g - a.g; }).slice(0, 10);
+    if (top.length){
+      var y1 = siguiente(); titulo('Productos que más ganancia dejaron', y1);
+      doc.autoTable(Object.assign({}, base, { startY: y1 + 3, head: [['Producto', 'SKU', 'Unid.', 'Facturación', 'Ganancia']],
+        body: top.map(function(p){ return [lat(p.nombre), lat(p.sku), p.u, lat(money(p.f)), lat(money(p.g))]; }), columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } }));
+    }
+    if (vs.length){
+      var y2 = siguiente(); titulo('Detalle de ventas (' + vs.length + ')', y2);
+      doc.autoTable(Object.assign({}, base, { startY: y2 + 3, head: [['Fecha', 'N°', 'Producto', 'Pub.', 'Cant.', 'Precio', 'Facturación', 'Ganancia']],
+        body: vs.map(function(v){ var k = calcVenta(v); return [fechaCorta(v.fecha), v.nro, lat(v.producto), v.tipo === 'Premium' ? 'Prem.' : 'Clás.', v.cantidad, lat(money(v.precio)), lat(money(k.fact)), lat(money(k.gan))]; }),
+        columnStyles: { 2: { cellWidth: 62 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } } }));
+    }
+    if (cs.length){
+      var y3 = siguiente(); titulo('Compras a proveedores (' + cs.length + ')', y3);
+      doc.autoTable(Object.assign({}, base, { startY: y3 + 3, head: [['Fecha', 'Producto', 'Cant.', 'Costo u.', 'Total', 'Estado']],
+        body: cs.map(function(x){ return [fechaCorta(x.fecha), lat(x.producto), x.cantidad, lat(money(x.costoU)), lat(money(num(x.cantidad) * num(x.costoU))), x.estado || 'PENDIENTE']; }),
+        columnStyles: { 1: { cellWidth: 70 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } }));
+    }
+    var np = doc.getNumberOfPages();
+    for (var i = 1; i <= np; i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal'); doc.text('Tammaro Distribuidora · Página ' + i + ' de ' + np, 105, 290, { align: 'center' }); }
+    doc.save('Tammaro_Informe_' + (todos ? 'general' : m) + '.pdf');
+    toast('Informe PDF generado');
+  });
+}
+$('btnSubir').onclick = abrirImportar;
+$('btnExportar').onclick = exportarExcel;
 
 /* ====================================================================
    USUARIOS (solo admin)

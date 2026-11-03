@@ -46,8 +46,13 @@ Realtime Database → pestaña **Reglas** → pegá el contenido de `database.ru
    - **Editor:** carga y modifica productos, ventas y compras.
    - **Admin:** además borra, cambia la configuración y gestiona usuarios.
 
-## Traer el Excel actual
-Configuración → **Importar desde Excel** → elegí `Tablero_Financiero_PRO_Tammaro_v2.xlsx`. Lee las hojas Productos, Ventas y Proveedores.
+## Excel: subir y exportar
+- **📥 Subir Excel** (arriba, en todas las pantallas; solo editores y admin). Lee las hojas *Productos*, *Ventas* y *Proveedores* del Tablero. Por defecto **suma solo lo nuevo**: si subís dos veces el mismo archivo no se duplica nada. Opcionalmente actualiza los costos y precios de productos que ya existen. «Reemplazar todo» borra lo cargado y deja lo del Excel.
+- **📤 Exportar Excel** (todos los roles). Baja un `.xlsx` con *Productos*, *Ventas*, *Proveedores* y *Resumen mensual*, en el mismo formato que acepta «Subir», así que sirve también de copia de seguridad.
+
+## Calendario e informe en PDF
+- **Calendario:** vista mensual con ventas por día (facturación, cantidad y ganancia), compras y el **inicio de mes**: cómo cerró el mes anterior y cuánta ganancia falta para cubrir los costos fijos. Tocá un día para ver su detalle.
+- **📄 Informe PDF:** en *Inicio* y en *Calendario*. Genera un PDF con el logo: resumen, productos que más ganancia dejaron, detalle de ventas y de compras. Elegís un mes o «Todos los meses».
 
 ## Cómo se calcula
 - **Facturación de una venta** = precio − comisión ML − impuestos + bonificaciones − envío.
